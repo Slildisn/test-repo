@@ -13,6 +13,7 @@
   canvas { display:block; width:100%; height:100%; }
 
   #hud { position:fixed; inset:0; pointer-events:none; }
+  #stick, #fire, #reload { pointer-events:auto; touch-action:none; }
   #top { position:absolute; top:calc(10px + env(safe-area-inset-top)); left:12px; right:12px;
     display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
   .chip { background:rgba(12,10,20,.55); border:1px solid rgba(255,255,255,.10); border-radius:10px;
@@ -510,9 +511,16 @@ addEventListener('touchend', e => {
   firing = false; fireBtn.classList.remove('on');
 }, { passive: false });
 
-fireBtn.addEventListener('touchstart', e => { firing = true; fireBtn.classList.add('on'); shootLoop(); e.stopPropagation(); }, { passive: true });
-fireBtn.addEventListener('touchend', e => { firing = false; fireBtn.classList.remove('on'); e.stopPropagation(); });
-reloadBtn.addEventListener('touchstart', e => { startReload(); e.stopPropagation(); });
+function startFire(e) { if (e) { e.preventDefault(); e.stopPropagation(); } firing = true; fireBtn.classList.add('on'); shootLoop(); }
+function stopFire(e) { if (e) { e.preventDefault(); e.stopPropagation(); } firing = false; fireBtn.classList.remove('on'); }
+fireBtn.addEventListener('touchstart', startFire, { passive: false });
+fireBtn.addEventListener('touchend', stopFire, { passive: false });
+fireBtn.addEventListener('touchcancel', stopFire, { passive: false });
+fireBtn.addEventListener('mousedown', startFire);
+fireBtn.addEventListener('mouseup', stopFire);
+fireBtn.addEventListener('mouseleave', stopFire);
+reloadBtn.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); startReload(); }, { passive: false });
+reloadBtn.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); startReload(); });
 
 function shootLoop() { if (firing) { shoot(); setTimeout(shootLoop, 120); } }
 
