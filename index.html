@@ -9,6 +9,9 @@
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{width:100%;height:100%;overflow:hidden;background:#05040a;color:#eae7f7;
     font-family:-apple-system,"PingFang SC","Noto Sans SC",sans-serif;user-select:none;touch-action:none;}
+  /* 强制横屏：整页转 90°，即使容器锁了竖屏也能横着玩 */
+  body.rot{position:fixed;top:0;left:0;width:100vh;height:100vw;
+    transform-origin:top left;transform:rotate(90deg) translateY(-100vw);}
   canvas{display:block;width:100%;height:100%;}
   #vig{position:fixed;inset:0;pointer-events:none;z-index:3;
     background:radial-gradient(circle at 50% 48%,transparent 42%,rgba(0,0,0,.55) 100%);}
@@ -57,7 +60,7 @@
     background:radial-gradient(circle,rgba(255,210,140,.22),rgba(255,180,90,.06));
     border:1px solid rgba(255,205,140,.4);box-shadow:0 0 16px rgba(255,190,110,.2);}
   #overlay{position:fixed;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    gap:16px;padding:30px;text-align:center;
+    gap:14px;padding:26px;text-align:center;
     background:radial-gradient(circle at 50% 32%,rgba(46,36,96,.9),rgba(5,4,10,.97) 72%);}
   #overlay:before{content:'';position:absolute;inset:0;pointer-events:none;
     background:radial-gradient(1px 1px at 20% 30%,rgba(180,215,255,.7),transparent),
@@ -65,17 +68,20 @@
                radial-gradient(1px 1px at 40% 70%,rgba(160,200,255,.5),transparent),
                radial-gradient(1px 1px at 85% 62%,rgba(200,170,255,.55),transparent),
                radial-gradient(1px 1px at 12% 82%,rgba(255,180,200,.45),transparent);}
-  #overlay h1{position:relative;font-size:27px;letter-spacing:4px;color:#fff4dd;
+  #overlay h1{position:relative;font-size:26px;letter-spacing:4px;color:#fff4dd;
     text-shadow:0 0 18px rgba(255,190,120,.55),0 0 42px rgba(255,120,90,.28);}
-  #overlay .tag{position:relative;font-size:10px;letter-spacing:6px;color:#8fa2d8;margin-top:-10px;}
-  #overlay .sub{position:relative;font-size:12.5px;line-height:2;color:#a9b2d4;max-width:330px;}
+  #overlay .tag{position:relative;font-size:10px;letter-spacing:6px;color:#8fa2d8;margin-top:-8px;}
+  #overlay .sub{position:relative;font-size:12.5px;line-height:1.95;color:#a9b2d4;max-width:330px;}
   #overlay .key{display:inline-block;border:1px solid rgba(160,200,255,.32);border-radius:5px;padding:1px 6px;
     margin:0 2px;font-size:11px;color:#cfe0ff;background:rgba(120,170,255,.08);}
-  #start{position:relative;margin-top:4px;padding:14px 46px;border-radius:32px;border:1px solid rgba(150,235,255,.55);
+  #start{position:relative;margin-top:2px;padding:13px 42px;border-radius:32px;border:1px solid rgba(150,235,255,.55);
     background:linear-gradient(180deg,rgba(105,215,255,.34),rgba(60,120,240,.18));color:#f0fbff;
     font-size:15px;letter-spacing:6px;box-shadow:0 0 26px rgba(90,200,255,.35),inset 0 1px 0 rgba(255,255,255,.2);}
   #start:active{transform:scale(.96);filter:brightness(1.25);}
-  #stats{position:relative;font-size:13px;line-height:2;color:#e8e2ff;}
+  #rot{position:relative;padding:9px 22px;border-radius:22px;border:1px solid rgba(160,200,255,.35);
+    background:rgba(120,170,255,.10);color:#cfe0ff;font-size:12px;letter-spacing:2px;}
+  #rot:active{background:rgba(120,170,255,.22);}
+  #stats{position:relative;font-size:13px;line-height:1.9;color:#e8e2ff;}
   #best{position:relative;font-size:11px;letter-spacing:1px;color:#7b83a8;}
 
   /* ---------- 横屏布局 ---------- */
@@ -93,12 +99,25 @@
             width: 78px; height: 78px; font-size: 11px; }
     #reload { right: calc(104px + env(safe-area-inset-right)); bottom: calc(30px + env(safe-area-inset-bottom));
               width: 56px; height: 56px; }
-    #overlay { gap: 10px; padding: 16px 40px; }
+    #overlay { gap: 9px; padding: 14px 40px; }
     #overlay h1 { font-size: 21px; }
-    #overlay .sub { line-height: 1.75; font-size: 11.5px; max-width: 560px; }
+    #overlay .sub { line-height: 1.7; font-size: 11.5px; max-width: 560px; }
     #start { padding: 11px 34px; font-size: 13px; letter-spacing: 5px; }
   }
-  @media (orientation: landscape) and (max-height: 420px) {
+  /* 强制横屏时，页面变成横屏比例，但媒体查询仍读到竖屏：手动套用横屏尺寸 */
+  body.rot #top { top: 8px; left: 10px; right: auto; width: 286px; gap: 7px; }
+  body.rot .chip { padding: 6px 9px 5px; }
+  body.rot .chip b { font-size: 16px; margin-top: 2px; }
+  body.rot #hpwrap { top: 78px; left: 12px; bottom: auto; width: 132px; }
+  body.rot #stick { left: 16px; bottom: 20px; width: 104px; height: 104px; }
+  body.rot #knob { width: 40px; height: 40px; margin: -20px 0 0 -20px; }
+  body.rot #fire { right: 18px; bottom: 20px; width: 78px; height: 78px; font-size: 11px; }
+  body.rot #reload { right: 104px; bottom: 30px; width: 56px; height: 56px; }
+  body.rot #overlay { gap: 9px; padding: 14px 40px; }
+  body.rot #overlay h1 { font-size: 21px; }
+  body.rot #overlay .sub { line-height: 1.7; font-size: 11.5px; max-width: 560px; }
+  body.rot #start { padding: 11px 34px; font-size: 13px; letter-spacing: 5px; }
+  @media (max-height: 420px) {
     #overlay .sub { display: none; }
     #overlay { gap: 8px; }
   }
@@ -131,12 +150,12 @@
   <div class="tag">TARGET RANGE 03 · BEASTS</div>
   <div class="sub" id="howto">
     兔、猫、猪、狼一波波扑上来，打光它们。<br>
-    横屏游玩视野更宽（手机竖屏也能玩）。<br>
     手机：左摇杆移动 · 右侧滑动转视角 · 右下 FIRE 开火<br>
     电脑：<span class="key">W A S D</span> 移动 · <span class="key">鼠标</span> 转向 · <span class="key">左键</span> 开火 · <span class="key">R</span> 装填
   </div>
   <div id="stats"></div>
   <button id="start">进入靶场</button>
+  <button id="rot">切到横屏</button>
   <div id="best"></div>
 </div>
 
@@ -168,8 +187,6 @@ try {
   showFatal('浏览器没开 WebGL（3D 加速）。用 Chrome／Safari 打开，或在设置里开启硬件加速后刷新。');
   throw err;
 }
-renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.8));
-renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 
@@ -269,6 +286,7 @@ const move = { x: 0, z: 0 };
 let yaw = 0, pitch = 0, running = false, gameOver = false;
 let score = 0, wave = 1, waveLeft = 0;
 let firing = false, reloading = false, lastShot = 0, shiftDown = false;
+let gunBaseX = .3, gunBaseZ = -.46;
 const clock = new THREE.Clock();
 
 const enemies = [];
@@ -483,7 +501,7 @@ muzzleM.position.set(0, .03, -.92);
 const handM = new THREE.Mesh(new THREE.BoxGeometry(.13, .16, .2), new THREE.MeshStandardMaterial({ color: 0xd8a98f, roughness: .85 }));
 handM.position.set(.02, -.14, .02);
 gun.add(bodyM, railM, gripM, magM, barrelM, muzzleM, handM);
-gun.position.set(.3, -.26, -.46);
+gun.position.set(gunBaseX, -.26, gunBaseZ);
 camera.add(gun);
 
 const muzzleFlash = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -558,7 +576,7 @@ function shoot() {
   beep(320, .1, 'square', .05, 90);
   beep(1100, .04, 'triangle', .03);
 
-  gun.position.z = -.34;
+  gun.position.z = gunBaseZ + .12;
   gun.rotation.x = -.06;
   muzzleFlash.material.opacity = 1;
   muzzleFlash.material.rotation = Math.random() * 6.28;
@@ -693,7 +711,7 @@ function updatePlayer(dt) {
   const moving = Math.min(1, Math.hypot(move.x, move.z));
   bobT += dt * 9 * moving;
   camera.position.y = 1.62 + Math.sin(bobT) * .022 * moving;
-  gun.position.x = .3 + Math.sin(bobT * .5) * .012 * moving;
+  gun.position.x = gunBaseX + Math.sin(bobT * .5) * .012 * moving;
 }
 
 const hitflash = document.getElementById('hitflash');
@@ -761,6 +779,60 @@ addEventListener('mousemove', e => {
   pitch = THREE.MathUtils.clamp(pitch - e.movementY * .002, -1.32, 1.32);
 });
 
+/* ---------- 屏幕方向 / 强制横屏 ---------- */
+const rotBtn = document.getElementById('rot');
+let rotMode = false;
+try { rotMode = localStorage.getItem('tomb3d_rot') === '1'; } catch (e) {}
+
+function toLocalPt(cx, cy) {
+  if (!rotMode) return { x: cx, y: cy };
+  return { x: cy, y: innerWidth - cx };
+}
+function stageSize() {
+  return rotMode ? { w: innerHeight, h: innerWidth } : { w: innerWidth, h: innerHeight };
+}
+function layoutGun(aspect) {
+  if (aspect < .85) {
+    gun.scale.setScalar(.66);
+    gunBaseX = .2; gunBaseZ = -.66;
+  } else {
+    gun.scale.setScalar(1);
+    gunBaseX = .3; gunBaseZ = -.46;
+  }
+  gun.position.set(gunBaseX, -.26, gunBaseZ);
+}
+function fitViewport() {
+  const s = stageSize();
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.8));
+  renderer.setSize(s.w, s.h);
+  camera.aspect = s.w / s.h;
+  camera.updateProjectionMatrix();
+  layoutGun(camera.aspect);
+}
+function syncRot() {
+  if (innerWidth > innerHeight && rotMode) rotMode = false;
+  document.body.classList.toggle('rot', rotMode);
+  try { localStorage.setItem('tomb3d_rot', rotMode ? '1' : '0'); } catch (e) {}
+  rotBtn.textContent = rotMode ? '回到竖屏' : (innerWidth > innerHeight ? '当前已是横屏' : '切到横屏');
+  fitViewport();
+  setTimeout(fitViewport, 120);
+  setTimeout(fitViewport, 360);
+}
+rotBtn.addEventListener('click', () => { rotMode = !rotMode; syncRot(); });
+
+addEventListener('resize', () => fitViewport());
+addEventListener('orientationchange', () => {
+  fitViewport();
+  setTimeout(fitViewport, 90);
+  setTimeout(fitViewport, 280);
+  setTimeout(fitViewport, 620);
+});
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', fitViewport);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(fitViewport, 60); });
+
+/* ---------- 触摸 ---------- */
 const stick = document.getElementById('stick');
 const knob = document.getElementById('knob');
 const fireBtn = document.getElementById('fire');
@@ -769,9 +841,10 @@ let stickId = null, lookId = null, lookPrev = { x: 0, y: 0 };
 
 function circleOf(el) {
   const r = el.getBoundingClientRect();
-  return { x: r.left + r.width / 2, y: r.top + r.height / 2, rad: Math.max(r.width, r.height) / 2 * 1.15 };
+  const c = toLocalPt(r.left + r.width / 2, r.top + r.height / 2);
+  return { x: c.x, y: c.y, rad: Math.max(r.width, r.height) / 2 * 1.12 };
 }
-function inCircle(t, c) { return Math.hypot(t.clientX - c.x, t.clientY - c.y) <= c.rad; }
+function inCircle(p, c) { return Math.hypot(p.x - c.x, p.y - c.y) <= c.rad; }
 
 function fireStart() { ensureAudio(); firing = true; fireBtn.classList.add('on'); shootLoop(); }
 function fireStop() { firing = false; fireBtn.classList.remove('on'); }
@@ -780,10 +853,11 @@ function shootLoop() { if (!firing) return; shoot(); setTimeout(shootLoop, 110);
 addEventListener('touchstart', e => {
   if (!running || gameOver) return;
   for (const t of e.changedTouches) {
-    if (inCircle(t, circleOf(fireBtn))) { fireStart(); continue; }
-    if (inCircle(t, circleOf(reloadBtn))) { startReload(); continue; }
-    if (inCircle(t, circleOf(stick)) && stickId === null) { stickId = t.identifier; continue; }
-    if (lookId === null) { lookId = t.identifier; lookPrev = { x: t.clientX, y: t.clientY }; }
+    const p = toLocalPt(t.clientX, t.clientY);
+    if (inCircle(p, circleOf(fireBtn))) { fireStart(); continue; }
+    if (inCircle(p, circleOf(reloadBtn))) { startReload(); continue; }
+    if (inCircle(p, circleOf(stick)) && stickId === null) { stickId = t.identifier; continue; }
+    if (lookId === null) { lookId = t.identifier; lookPrev = { x: p.x, y: p.y }; }
   }
   e.preventDefault();
 }, { passive: false });
@@ -791,17 +865,18 @@ addEventListener('touchstart', e => {
 addEventListener('touchmove', e => {
   if (!running || gameOver) return;
   for (const t of e.changedTouches) {
+    const p = toLocalPt(t.clientX, t.clientY);
     if (t.identifier === stickId) {
       const c = circleOf(stick);
-      let dx = t.clientX - c.x, dy = t.clientY - c.y;
+      let dx = p.x - c.x, dy = p.y - c.y;
       const len = Math.hypot(dx, dy), max = c.rad * .8;
       if (len > max) { dx = dx / len * max; dy = dy / len * max; }
       knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
       move.x = dx / max; move.z = -dy / max;
     } else if (t.identifier === lookId) {
-      yaw -= (t.clientX - lookPrev.x) * .0042;
-      pitch = THREE.MathUtils.clamp(pitch - (t.clientY - lookPrev.y) * .0036, -1.32, 1.32);
-      lookPrev = { x: t.clientX, y: t.clientY };
+      yaw -= (p.x - lookPrev.x) * .0042;
+      pitch = THREE.MathUtils.clamp(pitch - (p.y - lookPrev.y) * .0036, -1.32, 1.32);
+      lookPrev = { x: p.x, y: p.y };
     }
   }
   e.preventDefault();
@@ -811,7 +886,7 @@ addEventListener('touchend', e => {
   for (const t of e.changedTouches) {
     if (t.identifier === stickId) { stickId = null; move.x = move.z = 0; knob.style.transform = 'translate(0,0)'; }
     if (t.identifier === lookId) lookId = null;
-    if (inCircle(t, circleOf(fireBtn))) fireStop();
+    if (inCircle(toLocalPt(t.clientX, t.clientY), circleOf(fireBtn))) fireStop();
   }
 }, { passive: false });
 addEventListener('touchcancel', fireStop);
@@ -839,13 +914,13 @@ function animate() {
   }
   camera.rotation.set(pitch + sy, yaw + sx, 0, 'YXZ');
 
-  gun.position.z += (-.46 - gun.position.z) * .16;
+  gun.position.z += (gunBaseZ - gun.position.z) * .16;
   gun.rotation.x += (0 - gun.rotation.x) * .16;
   muzzleFlash.material.opacity *= .82;
 
   const t = performance.now() / 1000;
   lampA.intensity = 2.1 + Math.sin(t * 1.4) * .35;
-  padRing.scale.setScalar(1 + Math.sin(t * 1.1) * .03);
+  padRing.scale.setScalar(1 + Math.sin(t * 1.1) * .05);
   gridA.material.opacity = .38 + Math.sin(t * .8) * .06;
 
   for (let i = tracers.length - 1; i >= 0; i--) {
@@ -871,27 +946,6 @@ function animate() {
 
   renderer.render(scene, camera);
 }
-
-/* ---------- 旋转自适应 ---------- */
-function fitViewport() {
-  renderer.setSize(innerWidth, innerHeight);
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.8));
-}
-addEventListener('resize', fitViewport);
-addEventListener('orientationchange', () => {
-  fitViewport();
-  setTimeout(fitViewport, 90);
-  setTimeout(fitViewport, 260);
-  setTimeout(fitViewport, 600);
-});
-if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', fitViewport);
-  window.visualViewport.addEventListener('scroll', fitViewport);
-}
-document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(fitViewport, 60); });
-fitViewport();
 
 const overlay = document.getElementById('overlay');
 const startBtn = document.getElementById('start');
@@ -925,8 +979,9 @@ function endGame() {
 
 startBtn.addEventListener('click', startGame);
 
+syncRot();
 animate();
-window.__game = { scene, player, enemies, shoot, startGame };
+window.__game = { scene, player, enemies, shoot, startGame, syncRot, get rotMode() { return rotMode; } };
 </script>
 </body>
 </html>
