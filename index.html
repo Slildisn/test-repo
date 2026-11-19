@@ -77,6 +77,31 @@
   #start:active{transform:scale(.96);filter:brightness(1.25);}
   #stats{position:relative;font-size:13px;line-height:2;color:#e8e2ff;}
   #best{position:relative;font-size:11px;letter-spacing:1px;color:#7b83a8;}
+
+  /* ---------- 横屏布局 ---------- */
+  @media (orientation: landscape) {
+    #top { top: calc(8px + env(safe-area-inset-top)); left: calc(10px + env(safe-area-inset-left));
+           right: auto; width: 286px; gap: 7px; }
+    .chip { padding: 6px 9px 5px; }
+    .chip b { font-size: 16px; margin-top: 2px; }
+    #hpwrap { top: calc(78px + env(safe-area-inset-top)); left: calc(12px + env(safe-area-inset-left));
+              bottom: auto; width: 132px; }
+    #stick { left: calc(16px + env(safe-area-inset-left)); bottom: calc(20px + env(safe-area-inset-bottom));
+             width: 104px; height: 104px; }
+    #knob { width: 40px; height: 40px; margin: -20px 0 0 -20px; }
+    #fire { right: calc(18px + env(safe-area-inset-right)); bottom: calc(20px + env(safe-area-inset-bottom));
+            width: 78px; height: 78px; font-size: 11px; }
+    #reload { right: calc(104px + env(safe-area-inset-right)); bottom: calc(30px + env(safe-area-inset-bottom));
+              width: 56px; height: 56px; }
+    #overlay { gap: 10px; padding: 16px 40px; }
+    #overlay h1 { font-size: 21px; }
+    #overlay .sub { line-height: 1.75; font-size: 11.5px; max-width: 560px; }
+    #start { padding: 11px 34px; font-size: 13px; letter-spacing: 5px; }
+  }
+  @media (orientation: landscape) and (max-height: 420px) {
+    #overlay .sub { display: none; }
+    #overlay { gap: 8px; }
+  }
 </style>
 </head>
 <body>
@@ -106,6 +131,7 @@
   <div class="tag">TARGET RANGE 03 · BEASTS</div>
   <div class="sub" id="howto">
     兔、猫、猪、狼一波波扑上来，打光它们。<br>
+    横屏游玩视野更宽（手机竖屏也能玩）。<br>
     手机：左摇杆移动 · 右侧滑动转视角 · 右下 FIRE 开火<br>
     电脑：<span class="key">W A S D</span> 移动 · <span class="key">鼠标</span> 转向 · <span class="key">左键</span> 开火 · <span class="key">R</span> 装填
   </div>
@@ -131,6 +157,8 @@ function showFatal(msg) {
   o.style.display = 'flex';
   o.innerHTML = '<h1 style="font-size:22px">启动失败</h1><div class="sub">' + msg + '</div>';
 }
+
+try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
 
 const cv = document.getElementById('cv');
 let renderer;
@@ -312,7 +340,6 @@ function buildAnimal(tier, accent) {
   }
 
   if (tier === 0) {
-    /* 兔子：长耳、圆身、绒球尾巴 */
     const body = sph(.33, bodyMat, 0, .56, -.03, 16, 14); body.scale.set(1, 1.02, 1.16);
     const belly = sph(.26, bellyMat, 0, .52, .11, 14, 12); belly.scale.set(.92, .95, .6);
     head = new THREE.Group(); head.position.set(0, .92, .2);
@@ -338,7 +365,6 @@ function buildAnimal(tier, accent) {
     leg(-.15, -.24, .26, .07, bodyMat); leg(.15, -.24, .26, .07, bodyMat);
     leg(-.15, .17, .26, .07, bodyMat); leg(.15, .17, .26, .07, bodyMat);
   } else if (tier === 1) {
-    /* 猫：尖耳、长弯尾 */
     const body = sph(.32, bodyMat, 0, .62, -.02, 16, 14); body.scale.set(.95, 1.0, 1.22);
     head = new THREE.Group(); head.position.set(0, .95, .25);
     head.add(sph(.225, bodyMat, 0, 0, 0, 16, 14));
@@ -362,7 +388,6 @@ function buildAnimal(tier, accent) {
     leg(-.14, -.26, .34, .055, bodyMat); leg(.14, -.26, .34, .055, bodyMat);
     leg(-.14, .2, .34, .055, bodyMat); leg(.14, .2, .34, .055, bodyMat);
   } else if (tier === 2) {
-    /* 猪：圆胖、大屎鼻子 */
     const body = sph(.4, bodyMat, 0, .62, -.02, 16, 14); body.scale.set(1, .95, 1.18);
     head = new THREE.Group(); head.position.set(0, .78, .38);
     head.add(sph(.27, bodyMat, 0, 0, 0, 16, 14));
@@ -383,7 +408,6 @@ function buildAnimal(tier, accent) {
     leg(-.18, -.26, .25, .085, bodyMat); leg(.18, -.26, .25, .085, bodyMat);
     leg(-.18, .22, .25, .085, bodyMat); leg(.18, .22, .25, .085, bodyMat);
   } else {
-    /* 狼：高瘦、竖耳、长尾、冷光眼 */
     const body = sph(.33, bodyMat, 0, .78, -.04, 16, 14); body.scale.set(.95, 1.02, 1.28);
     const mane = sph(.26, bellyMat, 0, .98, .08, 12, 10); mane.scale.set(.85, .6, .95);
     head = new THREE.Group(); head.position.set(0, 1.0, .36);
@@ -621,11 +645,8 @@ function updateEnemies(dt) {
       const lag = (k === 0 || k === 3) ? 0 : Math.PI;
       ud.legs[k].rotation.x = moving ? Math.sin(gait + lag) * .55 : Math.sin(t * 2 + ud.phase) * .06;
     }
-    if (moving) {
-      e.position.y = Math.abs(Math.sin(gait)) * .16;
-    } else {
-      e.position.y = Math.sin(t * 7 + ud.phase) * .03;
-    }
+    if (moving) e.position.y = Math.abs(Math.sin(gait)) * .16;
+    else e.position.y = Math.sin(t * 7 + ud.phase) * .03;
 
     if (ud.tail) {
       if (ud.tail.isGroup) ud.tail.rotation.y = Math.sin(t * 6 + ud.phase) * .35;
@@ -851,6 +872,27 @@ function animate() {
   renderer.render(scene, camera);
 }
 
+/* ---------- 旋转自适应 ---------- */
+function fitViewport() {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.8));
+}
+addEventListener('resize', fitViewport);
+addEventListener('orientationchange', () => {
+  fitViewport();
+  setTimeout(fitViewport, 90);
+  setTimeout(fitViewport, 260);
+  setTimeout(fitViewport, 600);
+});
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', fitViewport);
+  window.visualViewport.addEventListener('scroll', fitViewport);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(fitViewport, 60); });
+fitViewport();
+
 const overlay = document.getElementById('overlay');
 const startBtn = document.getElementById('start');
 const statsEl = document.getElementById('stats');
@@ -867,6 +909,7 @@ function startGame() {
   overlay.style.display = 'none';
   ensureAudio();
   updateHud();
+  fitViewport();
 }
 
 function endGame() {
@@ -881,12 +924,6 @@ function endGame() {
 }
 
 startBtn.addEventListener('click', startGame);
-
-addEventListener('resize', () => {
-  renderer.setSize(innerWidth, innerHeight);
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-});
 
 animate();
 window.__game = { scene, player, enemies, shoot, startGame };
