@@ -103,9 +103,9 @@
 
 <div id="overlay">
   <h1>铁墓 · 三号靶场</h1>
-  <div class="tag">TARGET RANGE 03</div>
+  <div class="tag">TARGET RANGE 03 · BEASTS</div>
   <div class="sub" id="howto">
-    清空每一波靶机，波次越高，它们越快越硬。<br>
+    兔、猫、猪、狼一波波扑上来，打光它们。<br>
     手机：左摇杆移动 · 右侧滑动转视角 · 右下 FIRE 开火<br>
     电脑：<span class="key">W A S D</span> 移动 · <span class="key">鼠标</span> 转向 · <span class="key">左键</span> 开火 · <span class="key">R</span> 装填
   </div>
@@ -244,13 +244,9 @@ let firing = false, reloading = false, lastShot = 0, shiftDown = false;
 const clock = new THREE.Clock();
 
 const enemies = [];
-const coreGeo = new THREE.IcosahedronGeometry(0.42, 0);
-const ringGeo = new THREE.TorusGeometry(0.62, 0.045, 8, 32);
-const shellGeo = new THREE.BoxGeometry(0.86, 0.86, 0.86);
-const barGeo = new THREE.PlaneGeometry(0.86, 0.055);
 
 function enemyColor(tier) {
-  return tier >= 3 ? 0xffa64d : tier >= 2 ? 0xc06bff : 0xff5d78;
+  return tier >= 3 ? 0xffa64d : tier >= 2 ? 0xff9a4d : tier >= 1 ? 0xb45cff : 0xff6f92;
 }
 
 function glowTexture(hex) {
@@ -267,34 +263,179 @@ function glowTexture(hex) {
   return t;
 }
 
+/* ============ 动物 ============ */
+const ANIMALS = [
+  { name: '兔', body: 0xffe6f0, belly: 0xfff7fb, accent: 0xff6f92, scale: 1.0 },
+  { name: '猫', body: 0xd9c6ff, belly: 0xf1e8ff, accent: 0xb45cff, scale: 1.05 },
+  { name: '猪', body: 0xffd0b2, belly: 0xfff0e2, accent: 0xff9a4d, scale: 1.12 },
+  { name: '狼', body: 0x9aa6c8, belly: 0xc9d2e8, accent: 0x6f8bff, scale: 1.22 }
+];
+
+function sph(r, mat, x, y, z, seg, cut) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r, seg || 14, cut || 12), mat);
+  m.position.set(x, y, z);
+  return m;
+}
+function bx(w, h, d, mat, x, y, z) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(x, y, z);
+  return m;
+}
+function cap(r, len, mat, x, y, z) {
+  const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 4, 10), mat);
+  m.position.set(x, y, z);
+  return m;
+}
+
+function buildAnimal(tier, accent) {
+  const spec = ANIMALS[tier] || ANIMALS[0];
+  const bodyMat = new THREE.MeshStandardMaterial({ color: spec.body, roughness: .62, metalness: .05 });
+  const bellyMat = new THREE.MeshStandardMaterial({ color: spec.belly, roughness: .7 });
+  const accMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: .85, roughness: .35 });
+  const eyeMat3 = new THREE.MeshBasicMaterial({ color: 0x2a2440 });
+  const shineMat = new THREE.MeshBasicMaterial({ color: 0xfff4c8 });
+
+  const g = new THREE.Group();
+  g.scale.setScalar(spec.scale);
+  const legs = [];
+  let tail = null, head = null, ears = null;
+
+  function leg(x, z, len, r, mat) {
+    const lg = new THREE.Group();
+    lg.position.set(x, len, z);
+    const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 4, 8), mat);
+    m.position.y = -len / 2;
+    lg.add(m);
+    lg.add(bx(r * 2.4, r * 1.1, r * 2.9, mat, 0, -len, r * .7));
+    g.add(lg);
+    legs.push(lg);
+  }
+
+  if (tier === 0) {
+    /* 兔子：长耳、圆身、绒球尾巴 */
+    const body = sph(.33, bodyMat, 0, .56, -.03, 16, 14); body.scale.set(1, 1.02, 1.16);
+    const belly = sph(.26, bellyMat, 0, .52, .11, 14, 12); belly.scale.set(.92, .95, .6);
+    head = new THREE.Group(); head.position.set(0, .92, .2);
+    head.add(sph(.235, bodyMat, 0, 0, 0, 16, 14));
+    head.add(sph(.09, bellyMat, 0, -.07, .18, 10, 8));
+    head.add(sph(.038, eyeMat3, -.088, .05, .235, 8, 6));
+    head.add(sph(.038, eyeMat3, .088, .05, .235, 8, 6));
+    head.add(sph(.011, shineMat, -.082, .065, .265, 6, 5));
+    head.add(sph(.011, shineMat, .094, .065, .265, 6, 5));
+    head.add(sph(.036, accMat, 0, -.03, .245, 8, 6));
+    ears = new THREE.Group();
+    for (const s of [-1, 1]) {
+      const ear = cap(.062, .3, bodyMat, 0, 0, 0);
+      ear.position.set(s * .1, .17, 0); ear.rotation.z = s * -.18;
+      const inner = cap(.032, .24, accMat, 0, 0, 0);
+      inner.position.set(s * .1, .17, .04); inner.rotation.z = s * -.18;
+      ears.add(ear, inner);
+    }
+    ears.position.set(0, .18, -.02);
+    head.add(ears);
+    tail = sph(.11, bellyMat, 0, .55, -.4, 10, 8);
+    g.add(body, belly, head, tail);
+    leg(-.15, -.24, .26, .07, bodyMat); leg(.15, -.24, .26, .07, bodyMat);
+    leg(-.15, .17, .26, .07, bodyMat); leg(.15, .17, .26, .07, bodyMat);
+  } else if (tier === 1) {
+    /* 猫：尖耳、长弯尾 */
+    const body = sph(.32, bodyMat, 0, .62, -.02, 16, 14); body.scale.set(.95, 1.0, 1.22);
+    head = new THREE.Group(); head.position.set(0, .95, .25);
+    head.add(sph(.225, bodyMat, 0, 0, 0, 16, 14));
+    head.add(sph(.14, bellyMat, 0, -.05, .1, 12, 10));
+    for (const s of [-1, 1]) {
+      const c = new THREE.Mesh(new THREE.ConeGeometry(.095, .22, 4), bodyMat);
+      c.position.set(s * .13, .2, -.02); c.rotation.z = s * -.28; c.rotation.y = Math.PI / 4;
+      head.add(c);
+      head.add(sph(.045, eyeMat3, s * .085, .03, .215, 10, 8));
+      head.add(sph(.013, shineMat, s * .075, .05, .245, 6, 5));
+    }
+    head.add(sph(.032, accMat, 0, -.07, .235, 8, 6));
+    g.add(body, head);
+    tail = new THREE.Group();
+    tail.position.set(0, .7, -.36);
+    const t1 = cap(.05, .22, bodyMat, 0, -.06, 0); t1.rotation.x = .9;
+    const t2 = cap(.045, .18, bodyMat, 0, -.16, -.2); t2.rotation.x = 1.9;
+    tail.add(t1, t2);
+    tail.add(sph(.05, accMat, 0, -.2, -.32, 8, 6));
+    g.add(tail);
+    leg(-.14, -.26, .34, .055, bodyMat); leg(.14, -.26, .34, .055, bodyMat);
+    leg(-.14, .2, .34, .055, bodyMat); leg(.14, .2, .34, .055, bodyMat);
+  } else if (tier === 2) {
+    /* 猪：圆胖、大屎鼻子 */
+    const body = sph(.4, bodyMat, 0, .62, -.02, 16, 14); body.scale.set(1, .95, 1.18);
+    head = new THREE.Group(); head.position.set(0, .78, .38);
+    head.add(sph(.27, bodyMat, 0, 0, 0, 16, 14));
+    const snout = new THREE.Mesh(new THREE.CylinderGeometry(.13, .1, .12, 14), accMat);
+    snout.rotation.x = Math.PI / 2; snout.position.set(0, -.04, .25);
+    head.add(snout);
+    head.add(sph(.035, eyeMat3, -.11, .08, .2, 8, 6));
+    head.add(sph(.035, eyeMat3, .11, .08, .2, 8, 6));
+    for (const s of [-1, 1]) {
+      const ear = new THREE.Mesh(new THREE.ConeGeometry(.1, .14, 4), bodyMat);
+      ear.position.set(s * .17, .2, -.03); ear.rotation.z = s * -.5; ear.rotation.y = Math.PI / 4;
+      head.add(ear);
+    }
+    g.add(body, head);
+    tail = new THREE.Mesh(new THREE.TorusGeometry(.08, .028, 6, 14, Math.PI * 1.4), bodyMat);
+    tail.position.set(0, .72, -.44); tail.rotation.y = Math.PI / 2;
+    g.add(tail);
+    leg(-.18, -.26, .25, .085, bodyMat); leg(.18, -.26, .25, .085, bodyMat);
+    leg(-.18, .22, .25, .085, bodyMat); leg(.18, .22, .25, .085, bodyMat);
+  } else {
+    /* 狼：高瘦、竖耳、长尾、冷光眼 */
+    const body = sph(.33, bodyMat, 0, .78, -.04, 16, 14); body.scale.set(.95, 1.02, 1.28);
+    const mane = sph(.26, bellyMat, 0, .98, .08, 12, 10); mane.scale.set(.85, .6, .95);
+    head = new THREE.Group(); head.position.set(0, 1.0, .36);
+    head.add(sph(.22, bodyMat, 0, 0, 0, 16, 14));
+    const muzzle = new THREE.Mesh(new THREE.ConeGeometry(.115, .3, 12), bellyMat);
+    muzzle.rotation.x = Math.PI / 2; muzzle.position.set(0, -.04, .24);
+    head.add(muzzle);
+    head.add(sph(.028, eyeMat3, 0, -.02, .4, 8, 6));
+    for (const s of [-1, 1]) {
+      const c = new THREE.Mesh(new THREE.ConeGeometry(.11, .26, 4), bodyMat);
+      c.position.set(s * .12, .21, -.04); c.rotation.z = s * -.12; c.rotation.y = Math.PI / 4;
+      head.add(c);
+      head.add(sph(.042, accMat, s * .09, .03, .19, 10, 8));
+      head.add(sph(.05, accMat, s * .1, -.01, .36, 8, 6));
+    }
+    g.add(body, mane, head);
+    tail = new THREE.Group();
+    tail.position.set(0, .86, -.4);
+    const tt = new THREE.Mesh(new THREE.ConeGeometry(.13, .52, 8), bodyMat);
+    tt.rotation.x = 1.9; tt.position.set(0, -.08, -.16);
+    tail.add(tt);
+    tail.add(sph(.06, accMat, 0, -.2, -.4, 8, 6));
+    g.add(tail);
+    leg(-.15, -.28, .42, .06, bodyMat); leg(.15, -.28, .42, .06, bodyMat);
+    leg(-.15, .24, .42, .06, bodyMat); leg(.15, .24, .42, .06, bodyMat);
+  }
+
+  return { group: g, legs, tail, head, ears };
+}
+
 function spawnEnemy() {
   const ang = Math.random() * Math.PI * 2, r = 12 + Math.random() * 8;
   const x = Math.sin(ang) * r, z = Math.cos(ang) * r;
   const tier = Math.min(3, Math.floor((wave - 1) / 3));
   const hp = 3 + tier * 2 + Math.floor(wave / 2);
   const col = enemyColor(tier);
+  const built = buildAnimal(tier, col);
+  const g = built.group;
+  g.position.set(x, 0, z);
 
-  const g = new THREE.Group();
-  g.position.set(x, 1.05, z);
-
-  const shell = new THREE.Mesh(shellGeo, new THREE.MeshStandardMaterial({
-    color: col, roughness: .35, metalness: .55, transparent: true, opacity: .5, emissive: col, emissiveIntensity: .25
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glowTexture(col), transparent: true, opacity: .32, blending: THREE.AdditiveBlending, depthWrite: false
   }));
-  const wire = new THREE.LineSegments(new THREE.EdgesGeometry(shellGeo),
-    new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: .95 }));
-  const core = new THREE.Mesh(coreGeo, new THREE.MeshBasicMaterial({ color: 0xffd9a0 }));
-  const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: col }));
-  ring.rotation.x = Math.PI / 2.2;
-  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(col), transparent: true, opacity: .5, blending: THREE.AdditiveBlending, depthWrite: false }));
-  halo.scale.set(1.9, 1.9, 1);
-  const barBg = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(0x140008), transparent: true, opacity: .6, depthWrite: false }));
-  barBg.scale.set(1.0, .1, 1); barBg.position.set(0, .95, 0);
-  const bar = new THREE.Mesh(barGeo, new THREE.MeshBasicMaterial({ color: 0xff3a52 }));
-  bar.position.set(0, .95, 0.001);
+  halo.scale.set(2.3, 2.3, 1); halo.position.y = .7;
+  g.add(halo);
 
-  g.add(shell, wire, core, ring, halo, barBg, bar);
+  const barBg = bx(.98, .1, .001, new THREE.MeshBasicMaterial({ color: 0x160a14, transparent: true, opacity: .7 }), 0, 1.5, 0);
+  const bar = bx(.94, .06, .002, new THREE.MeshBasicMaterial({ color: 0xff3a52, transparent: true, opacity: .95 }), 0, 1.5, .01);
+  g.add(barBg, bar);
+
   scene.add(g);
-  g.userData = { hp, maxHp: hp, cd: 1.2 + Math.random(), bar, ring, core, halo, speed: 1.45 + tier * .55 + wave * .06, tier };
+  g.userData = { hp, maxHp: hp, cd: 1.2 + Math.random(), bar, legs: built.legs, tail: built.tail, head: built.head, halo, tier, tint: col, speed: 1.45 + tier * .55 + wave * .06, phase: Math.random() * 6.28 };
   enemies.push(g);
 }
 
@@ -415,7 +556,7 @@ function shoot() {
       ud.hp -= 1;
       const ratio = Math.max(0, ud.hp / ud.maxHp);
       ud.bar.scale.x = ratio;
-      ud.bar.position.x = -(1 - ratio) * .43;
+      ud.bar.position.x = -(1 - ratio) * .45;
       burst(h.point, 0xffd9a0);
       shockRing(h.point, 0xffc98a, .5);
       beep(700, .05, 'triangle', .04);
@@ -430,9 +571,9 @@ function killEnemy(e) {
   const i = enemies.indexOf(e);
   if (i >= 0) enemies.splice(i, 1);
   scene.remove(e);
-  const col = enemyColor(e.userData.tier);
-  burst(e.position.clone(), col);
-  shockRing(e.position.clone(), col, 2.2);
+  const col = e.userData.tint;
+  burst(e.position.clone().setY(e.position.y + .7), col);
+  shockRing(e.position.clone().setY(.1), col, 2.2);
   score++;
   waveLeft--;
   beep(880, .22, 'sine', .07, 320);
@@ -450,7 +591,6 @@ function startReload() {
     player.ammo = player.mag;
     reloading = false;
     updateHud();
-    beep(420, .12, 'triangle', .04, 620);
   }, 880);
 }
 
@@ -466,6 +606,7 @@ function nextWave() {
 
 function updateEnemies(dt) {
   const px = camera.position.x, pz = camera.position.z;
+  const t = performance.now() / 1000;
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i], ud = e.userData;
     const dx = px - e.position.x, dz = pz - e.position.z;
@@ -474,22 +615,32 @@ function updateEnemies(dt) {
     const nx = dx / dist, nz = dz / dist;
     e.rotation.y = Math.atan2(nx, nz);
 
-    ud.ring.rotation.z += dt * 1.6;
-    ud.core.rotation.x += dt * 1.2;
-    ud.core.rotation.y += dt * .9;
-    const pulse = 1 + Math.sin(performance.now() / 260 + i) * .12;
-    ud.core.scale.setScalar(pulse);
-    ud.halo.material.opacity = .35 + Math.sin(performance.now() / 300 + i) * .12;
+    const moving = dist > 2.4;
+    const gait = t * 5 + ud.phase;
+    for (let k = 0; k < ud.legs.length; k++) {
+      const lag = (k === 0 || k === 3) ? 0 : Math.PI;
+      ud.legs[k].rotation.x = moving ? Math.sin(gait + lag) * .55 : Math.sin(t * 2 + ud.phase) * .06;
+    }
+    if (moving) {
+      e.position.y = Math.abs(Math.sin(gait)) * .16;
+    } else {
+      e.position.y = Math.sin(t * 7 + ud.phase) * .03;
+    }
 
-    if (dist > 2.4) {
+    if (ud.tail) {
+      if (ud.tail.isGroup) ud.tail.rotation.y = Math.sin(t * 6 + ud.phase) * .35;
+      else ud.tail.rotation.z = Math.sin(t * 6 + ud.phase) * .3;
+    }
+    if (ud.head) ud.head.rotation.x = Math.sin(t * 4 + ud.phase) * .1 + (moving ? -.12 : .08);
+    ud.halo.material.opacity = .26 + Math.sin(t * 2.2 + ud.phase) * .1;
+
+    if (moving) {
       const step = ud.speed * dt;
       const tx = e.position.x + nx * step, tz = e.position.z + nz * step;
-      if (!blocked(tx, e.position.z, .55)) e.position.x = tx;
-      if (!blocked(e.position.x, tz, .55)) e.position.z = tz;
-      e.position.y = 1.05 + Math.sin(performance.now() / 340 + i * 1.7) * .16;
+      if (!blocked(tx, e.position.z, .5)) e.position.x = tx;
+      if (!blocked(e.position.x, tz, .5)) e.position.z = tz;
     } else {
       ud.cd -= dt;
-      e.position.y = 1.05 + Math.sin(performance.now() / 180 + i) * .1;
       if (ud.cd <= 0) {
         ud.cd = 1.05;
         hurtPlayer(4 + Math.floor(wave / 3));
@@ -722,7 +873,7 @@ function endGame() {
   gameOver = true; running = false; fireStop();
   const best = +(localStorage.getItem('tomb3d_best') || 0);
   if (score > best) localStorage.setItem('tomb3d_best', score);
-  statsEl.innerHTML = '本局消灭 <b>' + score + '</b> 个靶机 · 到达第 <b>' + wave + '</b> 波';
+  statsEl.innerHTML = '本局打倒 <b>' + score + '</b> 只动物 · 到达第 <b>' + wave + '</b> 波';
   bestEl.textContent = '最高纪录 ' + Math.max(best, score);
   document.getElementById('howto').style.display = 'none';
   startBtn.textContent = '再来一次';
