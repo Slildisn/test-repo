@@ -9,7 +9,6 @@
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{width:100%;height:100%;overflow:hidden;background:#05040a;color:#eae7f7;
     font-family:-apple-system,"PingFang SC","Noto Sans SC",sans-serif;user-select:none;touch-action:none;}
-  /* 强制横屏：整页转 90°，即使容器锁了竖屏也能横着玩 */
   body.rot{position:fixed;top:0;left:0;width:100vh;height:100vw;
     transform-origin:top left;transform:rotate(90deg) translateY(-100vw);}
   canvas{display:block;width:100%;height:100%;}
@@ -84,7 +83,6 @@
   #stats{position:relative;font-size:13px;line-height:1.9;color:#e8e2ff;}
   #best{position:relative;font-size:11px;letter-spacing:1px;color:#7b83a8;}
 
-  /* ---------- 横屏布局 ---------- */
   @media (orientation: landscape) {
     #top { top: calc(8px + env(safe-area-inset-top)); left: calc(10px + env(safe-area-inset-left));
            right: auto; width: 286px; gap: 7px; }
@@ -104,7 +102,6 @@
     #overlay .sub { line-height: 1.7; font-size: 11.5px; max-width: 560px; }
     #start { padding: 11px 34px; font-size: 13px; letter-spacing: 5px; }
   }
-  /* 强制横屏时，页面变成横屏比例，但媒体查询仍读到竖屏：手动套用横屏尺寸 */
   body.rot #top { top: 8px; left: 10px; right: auto; width: 286px; gap: 7px; }
   body.rot .chip { padding: 6px 9px 5px; }
   body.rot .chip b { font-size: 16px; margin-top: 2px; }
@@ -150,12 +147,12 @@
   <div class="tag">TARGET RANGE 03 · BEASTS</div>
   <div class="sub" id="howto">
     兔、猫、猪、狼一波波扑上来，打光它们。<br>
-    手机：左摇杆移动 · 右侧滑动转视角 · 右下 FIRE 开火<br>
+    手机：左摇杆移动 · 右侧拖动转视角 · 右下 FIRE 开火<br>
     电脑：<span class="key">W A S D</span> 移动 · <span class="key">鼠标</span> 转向 · <span class="key">左键</span> 开火 · <span class="key">R</span> 装填
   </div>
   <div id="stats"></div>
   <button id="start">进入靶场</button>
-  <button id="rot">切到横屏</button>
+  <button id="rot">切换方向</button>
   <div id="best"></div>
 </div>
 
@@ -779,10 +776,14 @@ addEventListener('mousemove', e => {
   pitch = THREE.MathUtils.clamp(pitch - e.movementY * .002, -1.32, 1.32);
 });
 
-/* ---------- 屏幕方向 / 强制横屏 ---------- */
+/* ---------- 方向：自动横屏 ---------- */
 const rotBtn = document.getElementById('rot');
-let rotMode = false;
-try { rotMode = localStorage.getItem('tomb3d_rot') === '1'; } catch (e) {}
+let rotMode = false, rotUserSet = false;
+try {
+  const v = localStorage.getItem('tomb3d_rot');
+  if (v === '1' || v === '0') { rotMode = v === '1'; rotUserSet = true; }
+} catch (e) {}
+if (!rotUserSet) rotMode = innerWidth < innerHeight;
 
 function toLocalPt(cx, cy) {
   if (!rotMode) return { x: cx, y: cy };
@@ -793,8 +794,11 @@ function stageSize() {
 }
 function layoutGun(aspect) {
   if (aspect < .85) {
-    gun.scale.setScalar(.66);
-    gunBaseX = .2; gunBaseZ = -.66;
+    gun.scale.setScalar(.54);
+    gunBaseX = .15; gunBaseZ = -.8;
+  } else if (aspect < 1.25) {
+    gun.scale.setScalar(.78);
+    gunBaseX = .24; gunBaseZ = -.6;
   } else {
     gun.scale.setScalar(1);
     gunBaseX = .3; gunBaseZ = -.46;
@@ -809,28 +813,22 @@ function fitViewport() {
   camera.updateProjectionMatrix();
   layoutGun(camera.aspect);
 }
-function syncRot() {
-  if (innerWidth > innerHeight && rotMode) rotMode = false;
+function syncRot(persist) {
+  const land = innerWidth > innerHeight;
+  if (!rotUserSet) rotMode = !land;
+  if (land) rotMode = false;
   document.body.classList.toggle('rot', rotMode);
-  try { localStorage.setItem('tomb3d_rot', rotMode ? '1' : '0'); } catch (e) {}
-  rotBtn.textContent = rotMode ? '回到竖屏' : (innerWidth > innerHeight ? '当前已是横屏' : '切到横屏');
+  rotBtn.textContent = rotMode ? '回到竖屏' : (land ? '已是横屏' : '切到横屏');
   fitViewport();
-  setTimeout(fitViewport, 120);
-  setTimeout(fitViewport, 360);
+  setTimeout(fitViewport, 100);
+  setTimeout(fitViewport, 300);
+  if (persist) { try { localStorage.setItem('tomb3d_rot', rotMode ? '1' : '0'); } catch (e) {} }
 }
-rotBtn.addEventListener('click', () => { rotMode = !rotMode; syncRot(); });
-
-addEventListener('resize', () => fitViewport());
-addEventListener('orientationchange', () => {
-  fitViewport();
-  setTimeout(fitViewport, 90);
-  setTimeout(fitViewport, 280);
-  setTimeout(fitViewport, 620);
+rotBtn.addEventListener('click', () => {
+  rotUserSet = true;
+  rotMode = !rotMode;
+  syncRot(true);
 });
-if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', fitViewport);
-}
-document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(fitViewport, 60); });
 
 /* ---------- 触摸 ---------- */
 const stick = document.getElementById('stick');
@@ -979,9 +977,19 @@ function endGame() {
 
 startBtn.addEventListener('click', startGame);
 
-syncRot();
+/* 任何尺寸变化都重新判断方向，避免双重旋转 */
+addEventListener('resize', () => syncRot(false));
+addEventListener('orientationchange', () => {
+  syncRot(false);
+  setTimeout(() => syncRot(false), 150);
+  setTimeout(() => syncRot(false), 500);
+});
+if (window.visualViewport) window.visualViewport.addEventListener('resize', () => syncRot(false));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(() => syncRot(false), 60); });
+
+syncRot(false);
 animate();
-window.__game = { scene, player, enemies, shoot, startGame, syncRot, get rotMode() { return rotMode; } };
+window.__game = { scene, player, enemies, shoot, startGame, syncRot };
 </script>
 </body>
 </html>
