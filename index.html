@@ -86,6 +86,25 @@
     border:1px solid rgba(255,255,255,.4);background:rgba(24,52,78,.6);pointer-events:auto;}
   #view.fp{color:#fff0d2;border-color:rgba(255,225,170,.7);background:rgba(90,60,24,.7);}
   body.rot #view{left:14px;top:44px;}
+  #take{position:absolute;left:calc(14px + env(safe-area-inset-left));top:calc(96px + env(safe-area-inset-top));
+    padding:7px 12px;border-radius:16px;font-size:10.5px;letter-spacing:2px;color:#fff4e2;
+    border:1px solid rgba(255,222,170,.55);background:rgba(72,50,24,.62);pointer-events:auto;}
+  #fire{position:absolute;right:calc(30px + env(safe-area-inset-right));bottom:calc(226px + env(safe-area-inset-bottom));
+    width:78px;height:78px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:12px;letter-spacing:4px;color:#fff3ea;border:1px solid rgba(255,190,160,.7);
+    background:radial-gradient(circle,rgba(210,70,60,.55),rgba(110,25,20,.35));
+    box-shadow:0 4px 16px rgba(80,20,10,.35);pointer-events:auto;}
+  #fire.on{background:radial-gradient(circle,rgba(255,170,120,.85),rgba(190,60,40,.6));
+    box-shadow:0 0 28px rgba(255,120,80,.6);}
+  #wstat{position:absolute;right:calc(14px + env(safe-area-inset-right));top:calc(192px + env(safe-area-inset-top));
+    font-size:9.5px;letter-spacing:1.5px;color:#fff3e6;text-shadow:0 1px 3px rgba(0,20,40,.7);}
+  body.rot #take{left:14px;top:96px;}
+  body.rot #fire{width:70px;height:70px;right:24px;bottom:186px;}
+  body.rot #wstat{right:14px;top:190px;}
+  @media (orientation:landscape){
+    #take{top:88px;}
+    #fire{width:66px;height:66px;right:calc(24px + env(safe-area-inset-right));bottom:calc(168px + env(safe-area-inset-bottom));}
+  }
   @media (max-height:420px){#overlay .sub{display:none;}}
 </style>
 </head>
@@ -102,15 +121,18 @@
   <div id="mapwrap"><canvas id="map" width="236" height="236"></canvas></div>
   <div id="coord">X 0 · Z 0</div>
   <div id="view">第一人称</div>
+  <div id="take">拿枪</div>
+  <div id="fire">开火</div>
+  <div id="wstat">空手 · 命中 0</div>
 </div>
 
 <div id="overlay">
   <h1>铁墓 · 风之庭院</h1>
   <div class="tag">GARDEN ROAM · DAYLIGHT</div>
   <div class="sub">
-    晴天的庭院，没有枪，也没人追你。走一圈看看塔、镜湖和石桥。<br>
-    手机：左摇杆移动 · 右侧拖动转视角 · 右下点疾跑（再点一次停）· 跳跃键<br>
-    电脑：<span class="key">W A S D</span> 移动 · <span class="key">Shift</span> 疾跑 · 手机上点「疾跑」切换 · <span class="key">空格</span> 跳 · <span class="key">V</span> 切视角 · <span class="key">拖动鼠标</span> 转视角 · <span class="key">滚轮</span> 远近
+    晴天的庭院，没人追你。路边的武器架上摆着几把没人用的枪。走一圈看看塔、镜湖和石桥。<br>
+    手机：左摇杆移动 · 右侧拖动转视角 · 右下点疾跑（再点一次停）· 跳跃键 · 武器架旁点「拿枪」· 右中「开火」<br>
+    电脑：<span class="key">W A S D</span> 移动 · <span class="key">Shift</span> 疾跑 · 手机上点「疾跑」切换 · <span class="key">空格</span> 跳 · <span class="key">V</span> 切视角 · <span class="key">E</span> 拿枪/换枪 · <span class="key">左键 / J</span> 开火 · <span class="key">拖动鼠标</span> 转视角 · <span class="key">滚轮</span> 远近
   </div>
   <button id="start">开始漫游</button>
 </div>
@@ -217,7 +239,7 @@ for (let i = 0; i < 62; i++) {
   scene.add(s);
 }
 
-/* 地标坐标（提前定义，供场景布置避让使用） */
+/* 地标坐标 */
 const TOWER = { x: -25, z: -24, r: 3.2 };
 const POND = { x: 18, z: -26, r: 9 };
 const BRIDGE = { x: 18, halfW: 1.9, z0: -38.5, z1: -13.5, h: 1.6 };
@@ -451,7 +473,6 @@ function heightAt(x, z) {
     slab.castShadow = true; slab.receiveShadow = true;
     g.add(slab);
 
-    // 连续矮护栏
     for (const side of [-1, 1]) {
       const rail = new THREE.Mesh(new THREE.BoxGeometry(.14, .62, len / steps + .04), railMat);
       rail.position.set(BRIDGE.x + side * (BRIDGE.halfW - .1), y + .26, z);
@@ -459,7 +480,6 @@ function heightAt(x, z) {
       g.add(rail);
     }
 
-    // 桥腹实心侧墙：从水面一直填到桥面，低角度不会看穿桥体
     if (y > .12) {
       for (const side of [-1, 1]) {
         const wallH = Math.max(.14, y - .02);
@@ -471,7 +491,6 @@ function heightAt(x, z) {
     }
   }
 
-  // 引道 + 桥墩：全部压在桥面以下，桥面上不再冒出石块
   const pierMat = new THREE.MeshStandardMaterial({ color: 0x9e9a90, roughness: .95, flatShading: true });
   for (const t of [0, 1]) {
     const z = BRIDGE.z0 + t * len;
@@ -515,6 +534,171 @@ function glowSprite() {
   return t;
 }
 
+/* ---------- 枪械：模型工厂 / 武器架 / 靶子 ---------- */
+const gunMetal = new THREE.MeshStandardMaterial({ color: 0x34383f, roughness: .5, metalness: .6 });
+const gunMetal2 = new THREE.MeshStandardMaterial({ color: 0x6a7078, roughness: .45, metalness: .55 });
+const gunGrip = new THREE.MeshStandardMaterial({ color: 0x2a221f, roughness: .85 });
+const gunWood = new THREE.MeshStandardMaterial({ color: 0x6b4a2e, roughness: .8 });
+const gunAccent = new THREE.MeshStandardMaterial({ color: 0xa33b45, roughness: .6, metalness: .25 });
+
+function gunMesh(type) {
+  const g = new THREE.Group();
+  const add = (geo, mat, x, y, z, rx) => {
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(x, y, z);
+    if (rx) m.rotation.x = rx;
+    m.castShadow = true;
+    g.add(m);
+    return m;
+  };
+  let muzzleZ = .26;
+  if (type === 'pistol') {
+    add(new THREE.BoxGeometry(.075, .075, .26), gunMetal, 0, .02, .06);
+    add(new THREE.BoxGeometry(.05, .16, .06), gunGrip, 0, -.075, -.06, -.18);
+    add(new THREE.CylinderGeometry(.019, .019, .11, 10), gunMetal2, 0, .03, .2, Math.PI / 2);
+    add(new THREE.TorusGeometry(.024, .008, 6, 10), gunMetal2, 0, -.015, .07);
+    muzzleZ = .27;
+  } else if (type === 'rifle') {
+    add(new THREE.BoxGeometry(.06, .07, .8), gunMetal, 0, .03, .18);
+    add(new THREE.BoxGeometry(.05, .1, .26), gunWood, 0, 0, -.42, -.05);
+    add(new THREE.BoxGeometry(.048, .15, .06), gunMetal2, 0, -.08, .02, .18);
+    add(new THREE.CylinderGeometry(.03, .03, .2, 10), gunMetal2, 0, .12, .1, Math.PI / 2);
+    add(new THREE.CylinderGeometry(.018, .018, .16, 8), gunMetal2, 0, .03, .62, Math.PI / 2);
+    add(new THREE.BoxGeometry(.022, .022, .022), gunAccent, 0, .17, .34);
+    muzzleZ = .72;
+  } else {
+    add(new THREE.BoxGeometry(.065, .078, .66), gunMetal, 0, .03, .1);
+    add(new THREE.BoxGeometry(.05, .1, .26), gunWood, 0, 0, -.36);
+    add(new THREE.BoxGeometry(.07, .062, .22), gunWood, 0, -.01, .22);
+    add(new THREE.CylinderGeometry(.02, .02, .2, 8), gunMetal2, 0, .02, .5, Math.PI / 2);
+    muzzleZ = .62;
+  }
+  const flash = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glowSprite(), color: 0xffd486, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  }));
+  flash.scale.set(.26, .26, 1);
+  flash.position.set(0, .04, muzzleZ + .02);
+  g.add(flash);
+  g.userData.flash = flash;
+  g.userData.muzzleZ = muzzleZ;
+  return g;
+}
+
+const RACK = { x: -7.6, z: 5.2 };
+const WEAPON_SLOTS = [
+  { id: 'pistol',  name: '手枪',   cd: .34, pellets: 1, spread: .012, kick: .12, rackX: -.78 },
+  { id: 'rifle',   name: '步枪',   cd: .13, pellets: 1, spread: .022, kick: .06, rackX: .02 },
+  { id: 'shotgun', name: '霰弹枪', cd: .9,  pellets: 5, spread: .09,  kick: .3,  rackX: .85 }
+];
+
+(function buildArmory() {
+  const woodMat = new THREE.MeshStandardMaterial({ color: 0x6f4f33, roughness: .85 });
+  const woodMat2 = new THREE.MeshStandardMaterial({ color: 0x5a4029, roughness: .9 });
+  const g = new THREE.Group();
+
+  for (const sx of [-1.15, 1.15]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(.13, 1.68, .13), woodMat2);
+    post.position.set(sx, .84, 0);
+    post.castShadow = true; post.receiveShadow = true;
+    g.add(post);
+  }
+  const shelf = new THREE.Mesh(new THREE.BoxGeometry(2.5, .1, .64), woodMat);
+  shelf.position.set(0, 1.12, 0);
+  shelf.castShadow = true; shelf.receiveShadow = true;
+  g.add(shelf);
+  const shelf2 = new THREE.Mesh(new THREE.BoxGeometry(2.5, .09, .54), woodMat);
+  shelf2.position.set(0, .42, 0);
+  shelf2.castShadow = true; shelf2.receiveShadow = true;
+  g.add(shelf2);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.1, .06), woodMat2);
+  back.position.set(0, 1.66, -.31);
+  back.castShadow = true;
+  g.add(back);
+
+  for (const slot of WEAPON_SLOTS) {
+    const m = gunMesh(slot.id);
+    m.scale.setScalar(.92);
+    m.position.set(slot.rackX, 1.19, .03);
+    m.rotation.y = slot.rackX < -.3 ? .34 : (slot.rackX > .3 ? -.3 : .06);
+    g.add(m);
+    slot.rackMesh = m;
+  }
+
+  for (const bx of [-.55, .5]) {
+    const box = new THREE.Mesh(new THREE.BoxGeometry(.42, .24, .3), woodMat2);
+    box.position.set(bx, .52, .02);
+    box.castShadow = true; box.receiveShadow = true;
+    g.add(box);
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(.44, .05, .32), gunAccent);
+    stripe.position.set(bx, .55, .02);
+    g.add(stripe);
+  }
+
+  const sc = document.createElement('canvas');
+  sc.width = 384; sc.height = 96;
+  const sg = sc.getContext('2d');
+  sg.fillStyle = '#2a2b33'; sg.fillRect(0, 0, 384, 96);
+  sg.strokeStyle = '#8a7a5c'; sg.lineWidth = 4; sg.strokeRect(6, 6, 372, 84);
+  sg.fillStyle = '#f0e6d2';
+  sg.font = '600 34px -apple-system,sans-serif';
+  sg.textAlign = 'center';
+  sg.fillText('A R M O R Y', 192, 46);
+  sg.fillStyle = '#a8a397';
+  sg.font = '20px -apple-system,sans-serif';
+  sg.fillText('靠近拿取 · 空手可换', 192, 74);
+  const signTex = new THREE.CanvasTexture(sc);
+  signTex.colorSpace = THREE.SRGBColorSpace;
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.4, .35), new THREE.MeshBasicMaterial({ map: signTex }));
+  sign.position.set(0, 1.8, .02);
+  g.add(sign);
+
+  g.position.set(RACK.x, 0, RACK.z);
+  g.rotation.y = .35;
+  scene.add(g);
+  addBlock(RACK.x, RACK.z, 1.35, 1.7);
+})();
+
+/* 木靶 */
+const targets = [];
+(function buildTargets() {
+  const boardMat = new THREE.MeshStandardMaterial({ color: 0xdccdb0, roughness: .9 });
+  const ringMat = new THREE.MeshStandardMaterial({ color: 0xc0524b, roughness: .85 });
+  const ringMat2 = new THREE.MeshStandardMaterial({ color: 0xf2ead8, roughness: .85 });
+  const postMat = new THREE.MeshStandardMaterial({ color: 0x6a4a30, roughness: .9 });
+  const spots = [[-11, 1, .9], [-13.5, -4.5, .55], [-10, -9.5, 1.15]];
+  for (const sp of spots) {
+    const x = sp[0], z = sp[1], ry = sp[2];
+    const g = new THREE.Group();
+    const post = new THREE.Mesh(new THREE.BoxGeometry(.1, 1.15, .1), postMat);
+    post.position.y = .575;
+    post.castShadow = true;
+    g.add(post);
+    const board = new THREE.Mesh(new THREE.CircleGeometry(.5, 24), boardMat);
+    board.position.y = 1.42;
+    board.rotation.y = Math.PI;
+    board.castShadow = true;
+    g.add(board);
+    const r1 = new THREE.Mesh(new THREE.CircleGeometry(.34, 20), ringMat);
+    r1.position.set(0, 1.42, .012);
+    r1.rotation.y = Math.PI;
+    g.add(r1);
+    const r2 = new THREE.Mesh(new THREE.CircleGeometry(.16, 16), ringMat2);
+    r2.position.set(0, 1.42, .024);
+    r2.rotation.y = Math.PI;
+    g.add(r2);
+    const r3 = new THREE.Mesh(new THREE.CircleGeometry(.05, 12), ringMat);
+    r3.position.set(0, 1.42, .036);
+    r3.rotation.y = Math.PI;
+    g.add(r3);
+    g.position.set(x, 0, z);
+    g.rotation.y = ry;
+    scene.add(g);
+    addBlock(x, z, .3, 1.9);
+    targets.push({ g, x, z, y: 1.42, r: .5, tilt: 0, vel: 0 });
+  }
+})();
+
 /* ---------- 角色（深紫蓝长直发 · 红瞳 · 冷颜） ---------- */
 function toonGrad(steps) {
   const n = steps || 4;
@@ -555,13 +739,11 @@ function part(geo, mat, x, y, z, parent) {
   return m;
 }
 
-/* 髋部总枢（动画里的 HIP_Y 基准） */
 const hipPivot = new THREE.Group();
 hipPivot.position.y = .92;
 avatar.add(hipPivot);
 rig.hip = hipPivot;
 
-/* 裙摆 + 腰 */
 const skirt = part(new THREE.CylinderGeometry(.19, .34, .28, 12, 1, true), skirtMat, 0, .02, 0, hipPivot);
 skirt.material.side = THREE.DoubleSide;
 part(new THREE.CylinderGeometry(.18, .2, .08, 12), navyMat, 0, .15, 0, hipPivot);
@@ -572,42 +754,33 @@ for (let i = 0; i < 6; i++) {
   pl.material = skirtMat;
 }
 
-/* 上身：水手服 */
 const torso = part(new THREE.CapsuleGeometry(.16, .26, 6, 14), blouseMat, 0, .34, 0, hipPivot);
 torso.scale.set(1, 1, .78);
-/* 水手领（前 V + 后披） */
 part(new THREE.BoxGeometry(.3, .05, .02), navyMat, 0, .5, .085, hipPivot);
 const collarL = part(new THREE.BoxGeometry(.17, .05, .02), navyMat, -.09, .44, .105, hipPivot);
 collarL.rotation.z = -.55;
 const collarR = part(new THREE.BoxGeometry(.17, .05, .02), navyMat, .09, .44, .105, hipPivot);
 collarR.rotation.z = .55;
 part(new THREE.BoxGeometry(.28, .03, .14), navyMat, 0, .5, -.09, hipPivot);
-/* 胸前小蝴蝶结 */
 part(new THREE.ConeGeometry(.045, .09, 4), ribbonMat, -.05, .4, .1, hipPivot).rotation.z = Math.PI / 2;
 part(new THREE.ConeGeometry(.045, .09, 4), ribbonMat, .05, .4, .1, hipPivot).rotation.z = -Math.PI / 2;
 part(new THREE.SphereGeometry(.034, 8, 6), ribbonMat, 0, .4, .105, hipPivot);
 
-/* 脖子 */
 const neck = new THREE.Group();
 neck.position.set(0, .62, 0);
 hipPivot.add(neck);
 rig.neck = neck;
 part(new THREE.CylinderGeometry(.055, .06, .1, 10), skinMat, 0, .02, 0, neck);
 
-/* 头（二次元比例：偏大、脸偏平） */
 const head = part(new THREE.SphereGeometry(.255, 24, 18), skinMat, 0, .16, 0, neck);
 head.scale.set(1, .98, .94);
-/* 下巴收一点 */
 part(new THREE.SphereGeometry(.16, 18, 14), skinMat, 0, .03, .06, neck).scale.set(.85, .78, .9);
 
-/* 后发：深紫蓝长直发 */
 const backHair = part(new THREE.SphereGeometry(.28, 24, 18), hairMat, 0, .2, -.02, neck);
 backHair.scale.set(1.04, .96, 1.02);
-/* 及腰长发 */
 const longHair = part(new THREE.CapsuleGeometry(.2, .5, 6, 14), hairMat2, 0, -.28, -.14, neck);
 longHair.scale.set(1.08, 1, .6);
 part(new THREE.CapsuleGeometry(.15, .2, 6, 12), hairMat, 0, -.62, -.12, neck).scale.set(1.1, 1, .55);
-/* 两侧垂到胸前的长发（随走动轻摆） */
 function sidelock(side) {
   const g = new THREE.Group();
   g.position.set(side * .215, .12, .06);
@@ -622,7 +795,6 @@ function sidelock(side) {
 rig.tailL = sidelock(-1);
 rig.tailR = sidelock(1);
 
-/* 齐刘海（直切） */
 for (let i = 0; i < 7; i++) {
   const k = i - 3;
   const bl = part(new THREE.BoxGeometry(.055, .2 + (i % 2) * .03, .03), i % 2 ? hairMat2 : hairMat,
@@ -630,11 +802,9 @@ for (let i = 0; i < 7; i++) {
   bl.rotation.z = k * .03;
   bl.rotation.x = -.06;
 }
-/* 刘海两侧贴脸的长鬓发 */
 part(new THREE.BoxGeometry(.09, .34, .05), hairMat2, -.235, .1, .12, neck).rotation.z = .08;
 part(new THREE.BoxGeometry(.09, .34, .05), hairMat2, .235, .1, .12, neck).rotation.z = -.08;
 
-/* 眼睛：细长红瞳 + 上眼线 + 直眉 */
 function eye(side) {
   const wx = side * .095;
   part(new THREE.SphereGeometry(.07, 18, 14), eyeWhiteMat, wx, .135, .232, neck).scale.set(1, 1.16, .4);
@@ -648,24 +818,20 @@ function eye(side) {
 }
 eye(-1); eye(1);
 
-/* 极淡腮红 + 平嘴 */
 part(new THREE.CircleGeometry(.036, 16), blushMat, -.152, .07, .222, neck).rotation.y = -.55;
 part(new THREE.CircleGeometry(.036, 16), blushMat, .152, .07, .222, neck).rotation.y = .55;
 part(new THREE.BoxGeometry(.058, .008, .012), new THREE.MeshBasicMaterial({ color: 0xc06a76 }), 0, .052, .243, neck);
 
-/* 头上蝴蝶结 */
 const bow = part(new THREE.TorusGeometry(.052, .022, 6, 12), ribbonMat, 0, .36, -.2, neck);
 bow.rotation.x = 1.1;
 part(new THREE.ConeGeometry(.05, .1, 4), ribbonMat, -.1, .37, -.21, neck).rotation.z = Math.PI / 2;
 part(new THREE.ConeGeometry(.05, .1, 4), ribbonMat, .1, .37, -.21, neck).rotation.z = -Math.PI / 2;
 rig.scarf = bow;
 
-/* 后飘丝带 */
 const scarfTail = part(new THREE.BoxGeometry(.11, .34, .025), ribbonMat, 0, .16, -.24, neck);
 scarfTail.rotation.x = -.35;
 rig.scarfTail = scarfTail;
 
-/* 手臂：泡泡袖 + 裸手 */
 function arm(side) {
   const sh = new THREE.Group();
   sh.position.set(side * .255, .48, 0);
@@ -675,13 +841,16 @@ function arm(side) {
   part(new THREE.CapsuleGeometry(.052, .24, 4, 10), skinMat, 0, -.22, 0, sh).scale.set(1.05, 1, 1.05);
   part(new THREE.SphereGeometry(.062, 12, 10), skinMat, 0, -.4, .01, sh).scale.set(.9, 1.1, .95);
   part(new THREE.SphereGeometry(.03, 10, 8), ribbonMat, 0, -.175, 0, sh).scale.set(1.15, .55, 1.15);
+  const hand = new THREE.Group();
+  hand.position.set(0, -.4, .02);
+  sh.add(hand);
+  sh.userData.hand = hand;
   sh.rotation.z = side * -.1;
   return sh;
 }
 rig.armL = arm(-1);
 rig.armR = arm(1);
 
-/* 腿：裸腿 + 白色过膝袜 + 小皮鞋 */
 function leg(side) {
   const hp = new THREE.Group();
   hp.position.set(side * .1, 0, 0);
@@ -701,12 +870,151 @@ avatar.position.set(0, 0, 6);
 avatar.rotation.y = Math.PI;
 scene.add(avatar);
 
-/* 角色脚下光圈 */
 const aura = new THREE.Mesh(new THREE.RingGeometry(.5, .72, 32),
   new THREE.MeshBasicMaterial({ color: 0x7a6fb0, transparent: true, opacity: .22, side: THREE.DoubleSide }));
 aura.rotation.x = -Math.PI / 2;
 aura.position.y = .02;
 scene.add(aura);
+
+/* ---------- 持枪 / 开火 ---------- */
+scene.add(camera);
+const handR = rig.armR.userData.hand;
+const handGuns = {}, vmGuns = {};
+for (const slot of WEAPON_SLOTS) {
+  const hg = gunMesh(slot.id);
+  hg.scale.setScalar(.93);
+  hg.position.set(0, .01, .05);
+  hg.rotation.set(-.12, .06, 0);
+  hg.visible = false;
+  handR.add(hg);
+  handGuns[slot.id] = hg;
+
+  const vg = gunMesh(slot.id);
+  vg.scale.setScalar(.86);
+  vg.position.set(.19, -.17, -.52);
+  vg.rotation.set(.02, -.06, 0);
+  vg.visible = false;
+  camera.add(vg);
+  vmGuns[slot.id] = vg;
+}
+
+let heldIndex = -1, held = null, fireCd = 0, hitCount = 0, flashTimer = 0, flashGun = null;
+const tracers = [], holes = [];
+const wstatEl = document.getElementById('wstat');
+const takeBtn = document.getElementById('take');
+const fireBtn = document.getElementById('fire');
+
+function updateWstat() {
+  wstatEl.textContent = (held ? held.name + ' · ' : '空手 · ') + '命中 ' + hitCount;
+  takeBtn.textContent = held ? '换枪' : '拿枪';
+}
+function nearRack() {
+  return Math.hypot(avatar.position.x - RACK.x, avatar.position.z - RACK.z) < 3.2;
+}
+function cycleWeapon() {
+  if (!nearRack()) {
+    wstatEl.textContent = held ? '要回到武器架才能换枪' : '走到武器架旁边才能拿枪';
+    setTimeout(updateWstat, 1300);
+    return;
+  }
+  if (heldIndex >= 0) WEAPON_SLOTS[heldIndex].rackMesh.visible = true;
+  heldIndex = (heldIndex + 1) % WEAPON_SLOTS.length;
+  held = WEAPON_SLOTS[heldIndex];
+  WEAPON_SLOTS[heldIndex].rackMesh.visible = false;
+  for (const s of WEAPON_SLOTS) { handGuns[s.id].visible = false; vmGuns[s.id].visible = false; }
+  handGuns[held.id].visible = !firstPerson;
+  vmGuns[held.id].visible = firstPerson;
+  updateWstat();
+}
+
+function spawnTracer(a, b) {
+  const geo = new THREE.BufferGeometry().setFromPoints([a.clone(), b.clone()]);
+  const mat = new THREE.LineBasicMaterial({ color: 0xfff2c4, transparent: true, opacity: .9,
+    blending: THREE.AdditiveBlending, depthWrite: false });
+  const line = new THREE.Line(geo, mat);
+  scene.add(line);
+  tracers.push({ line, life: .16 });
+  if (tracers.length > 12) {
+    const t = tracers.shift();
+    scene.remove(t.line); t.line.geometry.dispose();
+  }
+}
+function addHole(p) {
+  const m = new THREE.Mesh(new THREE.CircleGeometry(.035, 8),
+    new THREE.MeshBasicMaterial({ color: 0x1b1512, transparent: true, opacity: .85, depthWrite: false }));
+  m.position.copy(p);
+  m.lookAt(camera.position);
+  scene.add(m);
+  holes.push(m);
+  if (holes.length > 26) {
+    const h = holes.shift();
+    scene.remove(h);
+  }
+}
+function castShot(origin, dir) {
+  let best = null, bestT = Infinity;
+  for (const tg of targets) {
+    const oc = new THREE.Vector3(tg.x, tg.y, tg.z).sub(origin);
+    const t = oc.dot(dir);
+    if (t < .5 || t > 70) continue;
+    const perp = oc.clone().addScaledVector(dir, -t).length();
+    if (perp < tg.r && t < bestT) { bestT = t; best = tg; }
+  }
+  const end = origin.clone().addScaledVector(dir, best ? bestT : 45);
+  spawnTracer(origin, end);
+  if (best) {
+    hitCount++;
+    best.vel += 1.1;
+    addHole(end);
+    updateWstat();
+  }
+}
+function fireGun() {
+  if (!held) { wstatEl.textContent = '先到武器架拿一把枪'; setTimeout(updateWstat, 1300); return; }
+  if (fireCd > 0) return;
+  fireCd = held.cd;
+  const gun = firstPerson ? vmGuns[held.id] : handGuns[held.id];
+  gun.updateWorldMatrix(true, false);
+  const muzzle = new THREE.Vector3(0, .04, gun.userData.muzzleZ);
+  muzzle.applyMatrix4(gun.matrixWorld);
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+  for (let i = 0; i < held.pellets; i++) {
+    const d = dir.clone();
+    if (held.pellets > 1 || held.spread > .005) {
+      d.x += (Math.random() - .5) * held.spread * 2;
+      d.y += (Math.random() - .5) * held.spread * 2;
+      d.z += (Math.random() - .5) * held.spread * 2;
+      d.normalize();
+    }
+    castShot(muzzle, d);
+  }
+  gun.userData.flash.material.opacity = 1;
+  gun.userData.flash.material.rotation = Math.random() * 6.28;
+  flashTimer = .08; flashGun = gun;
+  camPitch = clampPitch(camPitch - held.kick * .22);
+  fireBtn.classList.add('on');
+  setTimeout(() => fireBtn.classList.remove('on'), 90);
+}
+
+takeBtn.addEventListener('click', e => { e.stopPropagation(); cycleWeapon(); });
+takeBtn.addEventListener('touchstart', e => { e.stopPropagation(); e.preventDefault(); cycleWeapon(); }, { passive: false });
+fireBtn.addEventListener('click', e => { e.stopPropagation(); fireGun(); });
+fireBtn.addEventListener('touchstart', e => { e.stopPropagation(); e.preventDefault(); fireGun(); }, { passive: false });
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'e') cycleWeapon();
+  if (k === 'j' || k === 'r') fireGun();
+});
+let wDownX = 0, wDownY = 0, wMoved = 0;
+cv.addEventListener('mousedown', e => { wDownX = e.clientX; wDownY = e.clientY; wMoved = 0; });
+addEventListener('mousemove', e => { wMoved = Math.max(wMoved, Math.hypot(e.clientX - wDownX, e.clientY - wDownY)); });
+addEventListener('mouseup', e => {
+  const tgt = e.target;
+  if (tgt && tgt.closest && tgt.closest('#fire,#take,#run,#jump,#view,#start')) return;
+  if (wMoved < 8 && running) fireGun();
+});
+updateWstat();
 
 /* ---------- 相机与输入 ---------- */
 let camYaw = 0, camPitch = .38, camDist = 6.2;
@@ -721,7 +1029,6 @@ let yVel = 0, airborne = false;
 const camPos = new THREE.Vector3(0, 2.4, 12);
 const camTarget = new THREE.Vector3(0, 1.1, 6);
 
-/* ---------- 方向 / 尺寸 ---------- */
 let rotMode = false, rotUserSet = false;
 try {
   const v = localStorage.getItem('garden_rot');
@@ -756,7 +1063,6 @@ addEventListener('resize', () => syncRot(false));
 addEventListener('orientationchange', () => { syncRot(false); setTimeout(() => syncRot(false), 300); });
 if (window.visualViewport) visualViewport.addEventListener('resize', () => syncRot(false));
 
-/* ---------- 触摸 ---------- */
 const stick = document.getElementById('stick');
 const knob = document.getElementById('knob');
 const runBtn = document.getElementById('run');
@@ -839,7 +1145,6 @@ addEventListener('touchend', e => {
 }, { passive: false });
 addEventListener('touchcancel', () => { runBtn.classList.remove('on'); });
 
-/* ---------- 键盘 ---------- */
 const keys = {};
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
@@ -924,7 +1229,6 @@ function update(dt) {
     avatar.rotation.y = facing;
   }
 
-  // 垂直：跳跃 / 落地 / 上桥抬升
   const groundY = heightAt(avatar.position.x, avatar.position.z);
   if (airborne) {
     yVel -= GRAVITY * dt;
@@ -955,6 +1259,11 @@ function update(dt) {
     rig.armL.rotation.z = .35; rig.armR.rotation.z = -.35;
     rig.hip.rotation.x = -.12;
     rig.scarfTail.rotation.x = -1.2;
+  } else if (held) {
+    // 持枪时右臂微举，不让枪抡到腿上
+    rig.armR.rotation.x = Math.min(rig.armR.rotation.x, -.75);
+    rig.armR.rotation.z = -.28;
+    rig.armR.updateMatrixWorld();
   }
   rig.hip.position.y = .92 + Math.abs(Math.sin(walkPhase)) * (mag > .02 ? .06 : .012) - landPulse * .12;
   rig.hip.rotation.x = mag > .02 ? (isSprint ? -.16 : -.05) : Math.sin(walkPhase) * .01;
@@ -1027,7 +1336,6 @@ function updateCamera(dt) {
   const want = head.clone().add(off);
   want.y = Math.max(want.y, .6);
 
-  // 站在桥上 / 桥边时，强制把相机抬到桥面之上，避免贴到桥板底面
   const nearBridge = Math.abs(avatar.position.x - BRIDGE.x) < BRIDGE.halfW + 2.4
     && avatar.position.z > BRIDGE.z0 - 3 && avatar.position.z < BRIDGE.z1 + 3;
   if (nearBridge) want.y = Math.max(want.y, avatar.position.y + 2.1);
@@ -1088,6 +1396,14 @@ function drawMap() {
 
   mapCtx.fillStyle = 'rgba(210,150,60,.95)';
   mapCtx.beginPath(); mapCtx.arc(mx(TOWER.x), mz(TOWER.z), TOWER.r * sc + 1, 0, 6.2832); mapCtx.fill();
+
+  // 武器架 + 靶子
+  mapCtx.fillStyle = 'rgba(150,110,70,.95)';
+  mapCtx.fillRect(mx(RACK.x) - 3, mz(RACK.z) - 3, 6, 6);
+  mapCtx.fillStyle = 'rgba(190,80,70,.95)';
+  for (const tg of targets) {
+    mapCtx.beginPath(); mapCtx.arc(mx(tg.x), mz(tg.z), 2.4, 0, 6.2832); mapCtx.fill();
+  }
 
   const px = avatar.position.x, pz = avatar.position.z;
   const cxp = mx(px), czp = mz(pz);
@@ -1154,6 +1470,28 @@ function loop() {
     rig.tailR.rotation.z = .06 + sw;
   }
 
+  if (fireCd > 0) fireCd = Math.max(0, fireCd - dt);
+  if (flashTimer > 0) {
+    flashTimer -= dt;
+    if (flashGun) flashGun.userData.flash.material.opacity = Math.max(0, flashTimer / .08);
+  }
+  for (let i = tracers.length - 1; i >= 0; i--) {
+    const tr = tracers[i];
+    tr.life -= dt;
+    tr.line.material.opacity = Math.max(0, tr.life / .16) * .9;
+    if (tr.life <= 0) { scene.remove(tr.line); tr.line.geometry.dispose(); tracers.splice(i, 1); }
+  }
+  for (const tg of targets) {
+    tg.vel += (0 - tg.tilt) * 9 * dt;
+    tg.vel *= Math.min(1, 1 - dt * 5);
+    tg.tilt += tg.vel * dt;
+    tg.g.rotation.x = tg.tilt;
+  }
+  if (held) {
+    handGuns[held.id].visible = !firstPerson;
+    vmGuns[held.id].visible = firstPerson;
+  }
+
   mapTimer += dt;
   if (mapTimer > .12) { mapTimer = 0; drawMap(); }
 
@@ -1167,7 +1505,7 @@ startBtn.addEventListener('click', () => {
 
 syncRot(false);
 loop();
-window.__garden = { scene, avatar, camera, move, renderer, jump: doJump };
+window.__garden = { scene, avatar, camera, move, renderer, jump: doJump, fire: fireGun, take: cycleWeapon };
 </script>
 </body>
 </html>
