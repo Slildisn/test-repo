@@ -31,6 +31,12 @@
     border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:3px;color:#d7f6e8;
     border:1px solid rgba(130,235,200,.45);background:radial-gradient(circle,rgba(80,230,180,.22),rgba(20,120,100,.08));
     box-shadow:0 0 18px rgba(60,220,170,.22);}
+  #jump{position:absolute;right:calc(34px + env(safe-area-inset-right));bottom:calc(148px + env(safe-area-inset-bottom));
+    width:62px;height:62px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:10.5px;letter-spacing:3px;color:#ffe8c4;border:1px solid rgba(255,205,130,.45);
+    background:radial-gradient(circle,rgba(255,190,110,.22),rgba(120,70,20,.08));
+    box-shadow:0 0 16px rgba(255,180,90,.22);pointer-events:auto;}
+  #jump.on{background:radial-gradient(circle,rgba(255,220,150,.6),rgba(180,110,30,.3));}
   #run.on{background:radial-gradient(circle,rgba(120,255,205,.55),rgba(30,180,140,.3));
     box-shadow:0 0 30px rgba(70,240,190,.55);}
   #mapwrap{position:absolute;top:calc(52px + env(safe-area-inset-top));right:calc(14px + env(safe-area-inset-right));
@@ -56,6 +62,7 @@
     #stick{width:100px;height:100px;left:calc(16px + env(safe-area-inset-left));bottom:calc(30px + env(safe-area-inset-bottom));}
     #knob{width:40px;height:40px;margin:-20px 0 0 -20px;}
     #run{width:66px;height:66px;right:calc(20px + env(safe-area-inset-right));bottom:calc(30px + env(safe-area-inset-bottom));}
+    #jump{width:54px;height:54px;right:calc(24px + env(safe-area-inset-right));bottom:calc(104px + env(safe-area-inset-bottom));}
     #speed{bottom:calc(8px + env(safe-area-inset-bottom));font-size:9px;}
     #overlay{gap:9px;}
     #overlay h1{font-size:20px;}
@@ -67,6 +74,7 @@
   body.rot #stick{width:100px;height:100px;left:16px;bottom:30px;}
   body.rot #knob{width:40px;height:40px;margin:-20px 0 0 -20px;}
   body.rot #run{width:66px;height:66px;right:20px;bottom:30px;}
+  body.rot #jump{width:58px;height:58px;right:24px;bottom:110px;}
   body.rot #speed{bottom:8px;font-size:9px;}
   body.rot #overlay{gap:9px;}
   body.rot #overlay h1{font-size:20px;}
@@ -90,6 +98,7 @@
   <div id="speed">STROLLING</div>
   <div id="stick"><div id="knob"></div></div>
   <div id="run">疾跑</div>
+  <div id="jump">跳跃</div>
   <div id="mapwrap"><canvas id="map" width="236" height="236"></canvas></div>
   <div id="coord">X 0 · Z 0</div>
   <div id="view">第一人称</div>
@@ -100,8 +109,8 @@
   <div class="tag">GARDEN ROAM · EXPLORE</div>
   <div class="sub">
     没有枪，也没人追你。走一圈看看塔、镜湖和石桥。<br>
-    手机：左摇杆移动 · 右侧拖动转视角 · 右下按住疾跑 · 左上可切第一/第三人称<br>
-    电脑：<span class="key">W A S D</span> 移动 · <span class="key">Shift</span> 疾跑 · <span class="key">V</span> 切视角 · <span class="key">拖动鼠标</span> 转视角 · <span class="key">滚轮</span> 远近
+    手机：左摇杆移动 · 右侧拖动转视角 · 右下按住疾跑 · 右上点跳跃 · 左上可切第一/第三人称<br>
+    电脑：<span class="key">W A S D</span> 移动 · <span class="key">Shift</span> 疾跑 · <span class="key">空格</span> 跳 · <span class="key">V</span> 切视角 · <span class="key">拖动鼠标</span> 转视角 · <span class="key">滚轮</span> 远近
   </div>
   <button id="start">开始漫游</button>
 </div>
@@ -312,7 +321,7 @@ const ripples = [];
 const pondCircles = [];
 
 function nearLandmark(x, z, pad) {
-  if (Math.hypot(x - POND.x, z - POND.z) < POND.r + pad) return true;
+  if (Math.hypot(x - POND.x, z - POND.z) < POND.r + pad + 2.2) return true;
   if (Math.hypot(x - TOWER.x, z - TOWER.z) < TOWER.r + pad) return true;
   if (Math.abs(x - BRIDGE.x) < BRIDGE.halfW + pad + .8 && z > BRIDGE.z0 - pad - 1 && z < BRIDGE.z1 + pad + 1) return true;
   return false;
@@ -577,6 +586,7 @@ const move = { x: 0, z: 0 };
 let running = false, sprint = false, shiftDown = false;
 let firstPerson = false;
 let walkPhase = 0, camReady = false;
+let yVel = 0, airborne = false;
 
 const camPos = new THREE.Vector3(0, 2.4, 12);
 const camTarget = new THREE.Vector3(0, 1.1, 6);
@@ -624,6 +634,7 @@ const speedEl = document.getElementById('speed');
 const overlay = document.getElementById('overlay');
 const startBtn = document.getElementById('start');
 const viewBtn = document.getElementById('view');
+const jumpBtn = document.getElementById('jump');
 
 function clampPitch(v) {
   return THREE.MathUtils.clamp(v, firstPerson ? -1.15 : .04, firstPerson ? 1.25 : 1.05);
@@ -637,6 +648,12 @@ function setView(fp) {
   if (!fp) camPitch = THREE.MathUtils.clamp(camPitch, .04, 1.05);
   camReady = false;
 }
+jumpBtn.addEventListener('touchstart', e => {
+  e.stopPropagation(); e.preventDefault();
+  doJump(); jumpBtn.classList.add('on');
+}, { passive: false });
+jumpBtn.addEventListener('touchend', () => jumpBtn.classList.remove('on'));
+jumpBtn.addEventListener('click', e => { e.stopPropagation(); doJump(); });
 viewBtn.addEventListener('click', e => { e.stopPropagation(); setView(!firstPerson); });
 viewBtn.addEventListener('touchstart', e => { e.stopPropagation(); e.preventDefault(); setView(!firstPerson); }, { passive: false });
 
@@ -652,6 +669,7 @@ addEventListener('touchstart', e => {
   for (const t of e.changedTouches) {
     const p = toLocalPt(t.clientX, t.clientY);
     if (inCircle(p, circleOf(runBtn))) { sprint = true; runBtn.classList.add('on'); continue; }
+    if (inCircle(p, circleOf(jumpBtn))) { doJump(); jumpBtn.classList.add('on'); continue; }
     if (inCircle(p, circleOf(stick)) && stickId === null) { stickId = t.identifier; continue; }
     if (lookId === null) { lookId = t.identifier; lookPrev = { x: p.x, y: p.y }; }
   }
@@ -683,6 +701,7 @@ addEventListener('touchend', e => {
     if (t.identifier === stickId) { stickId = null; move.x = move.z = 0; knob.style.transform = 'translate(0,0)'; }
     if (t.identifier === lookId) lookId = null;
     if (inCircle(toLocalPt(t.clientX, t.clientY), circleOf(runBtn))) { sprint = false; runBtn.classList.remove('on'); }
+    jumpBtn.classList.remove('on');
   }
 }, { passive: false });
 addEventListener('touchcancel', () => { sprint = false; runBtn.classList.remove('on'); });
@@ -693,7 +712,7 @@ addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   keys[k] = true;
   if (k === 'shift') shiftDown = true;
-  if (k === ' ') overlay.style.display = 'none';
+  if (k === ' ') { if (running) doJump(); else overlay.style.display = 'none'; }
   if (k === 'v' || k === 'f') setView(!firstPerson);
 });
 addEventListener('keyup', e => {
@@ -728,6 +747,13 @@ function blockedAt(x, z) {
 
 let facing = Math.PI;
 
+const JUMP_V = 5.4, GRAVITY = 13;
+function doJump() {
+  if (!running || airborne) return;
+  yVel = JUMP_V;
+  airborne = true;
+}
+
 function update(dt) {
   let inX = move.x, fwd = move.z;
   if (keys['w']) fwd = 1;
@@ -752,8 +778,6 @@ function update(dt) {
     if (!blockedAt(nx, avatar.position.z)) avatar.position.x = nx;
     if (!blockedAt(avatar.position.x, nz)) avatar.position.z = nz;
 
-    avatar.position.y = THREE.MathUtils.lerp(avatar.position.y, heightAt(avatar.position.x, avatar.position.z), Math.min(1, dt * 12));
-    if (avatar.position.y < .01) avatar.position.y = 0;
     const lim = GROUND - 7.5;
     avatar.position.x = THREE.MathUtils.clamp(avatar.position.x, -lim, lim);
     avatar.position.z = THREE.MathUtils.clamp(avatar.position.z, -lim, lim);
@@ -764,6 +788,17 @@ function update(dt) {
     while (d < -Math.PI) d += Math.PI * 2;
     facing += d * Math.min(1, dt * 12);
     avatar.rotation.y = facing;
+  }
+
+  // 垂直：跳跃 / 落地 / 上桥抬升
+  const groundY = heightAt(avatar.position.x, avatar.position.z);
+  if (airborne) {
+    yVel -= GRAVITY * dt;
+    avatar.position.y += yVel * dt;
+    if (avatar.position.y <= groundY) { avatar.position.y = groundY; yVel = 0; airborne = false; }
+  } else {
+    avatar.position.y = THREE.MathUtils.lerp(avatar.position.y, groundY, Math.min(1, dt * 12));
+    if (Math.abs(avatar.position.y - groundY) < .003) avatar.position.y = groundY;
   }
 
   const gait = mag > .02 ? (isSprint ? 11.5 : 7.4) : 2.2;
@@ -785,7 +820,7 @@ function update(dt) {
   aura.position.set(avatar.position.x, .02, avatar.position.z);
   aura.material.opacity = .16 + Math.sin(performance.now() / 500) * .05;
 
-  speedEl.textContent = mag > .02 ? (isSprint ? 'SPRINTING' : (inWater ? 'SPLASHING' : 'WALKING')) : 'STROLLING';
+  speedEl.textContent = airborne ? 'AIRBORNE' : (mag > .02 ? (isSprint ? 'SPRINTING' : (inWater ? 'SPLASHING' : 'WALKING')) : 'STROLLING');
 }
 
 function safeCamPos(head, want) {
@@ -963,7 +998,7 @@ startBtn.addEventListener('click', () => {
 
 syncRot(false);
 loop();
-window.__garden = { scene, avatar, camera, move, renderer };
+window.__garden = { scene, avatar, camera, move, renderer, jump: doJump };
 </script>
 </body>
 </html>
