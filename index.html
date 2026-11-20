@@ -515,12 +515,34 @@ function glowSprite() {
   return t;
 }
 
-/* ---------- 角色 ---------- */
-const skinMat = new THREE.MeshStandardMaterial({ color: 0xf2cdad, roughness: .8 });
-const coatMat = new THREE.MeshStandardMaterial({ color: 0x3d8a8c, roughness: .65, metalness: .05 });
-const pantsMat = new THREE.MeshStandardMaterial({ color: 0x44536e, roughness: .8 });
-const bootMat = new THREE.MeshStandardMaterial({ color: 0x2b3542, roughness: .7 });
-const scarfMat = new THREE.MeshStandardMaterial({ color: 0xffbe6e, roughness: .7 });
+/* ---------- 角色（二次元少女 · 樱发双马尾） ---------- */
+function toonGrad(steps) {
+  const n = steps || 4;
+  const data = new Uint8Array(n);
+  for (let i = 0; i < n; i++) data[i] = Math.round(60 + 195 * (i / (n - 1)));
+  const tex = new THREE.DataTexture(data, n, 1, THREE.RedFormat);
+  tex.minFilter = tex.magFilter = THREE.NearestFilter;
+  tex.needsUpdate = true;
+  return tex;
+}
+const GRAD = toonGrad(4);
+const toon = (color, extra) => new THREE.MeshToonMaterial(Object.assign({ color, gradientMap: GRAD }, extra || {}));
+
+const skinMat = toon(0xffdfcd);
+const hairMat = toon(0xf7a8c4);
+const hairMat2 = toon(0xe98bab);
+const blouseMat = toon(0xfdfdff);
+const navyMat = toon(0x2b3560);
+const skirtMat = toon(0x3b4780, { flatShading: true });
+const sockMat = toon(0xf7faff);
+const shoeMat = toon(0x6a4535);
+const ribbonMat = toon(0xff8fb8);
+const eyeWhiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const irisMat = new THREE.MeshBasicMaterial({ color: 0x6a4bb0 });
+const pupilMat = new THREE.MeshBasicMaterial({ color: 0x2a2050 });
+const hiliteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const blushMat = new THREE.MeshBasicMaterial({ color: 0xff9fb4, transparent: true, opacity: .5, depthWrite: false });
+const lashMat = new THREE.MeshBasicMaterial({ color: 0x2a1f38 });
 
 const avatar = new THREE.Group();
 const rig = {};
@@ -533,55 +555,147 @@ function part(geo, mat, x, y, z, parent) {
   return m;
 }
 
-/* 髋部总枢 */
+/* 髋部总枢（动画里的 HIP_Y 基准） */
 const hipPivot = new THREE.Group();
 hipPivot.position.y = .92;
 avatar.add(hipPivot);
 rig.hip = hipPivot;
 
-/* 躯干 */
-const torso = part(new THREE.CapsuleGeometry(.24, .34, 6, 14), coatMat, 0, .34, 0, hipPivot);
-torso.scale.set(1.05, 1, .78);
-part(new THREE.BoxGeometry(.09, .3, .02), new THREE.MeshStandardMaterial({ color: 0xbfeff2, roughness: .4 }), 0, .36, .2, hipPivot);
+/* 裙摆 + 腰 */
+const skirt = part(new THREE.CylinderGeometry(.19, .34, .28, 12, 1, true), skirtMat, 0, .02, 0, hipPivot);
+skirt.material.side = THREE.DoubleSide;
+part(new THREE.CylinderGeometry(.18, .2, .08, 12), navyMat, 0, .15, 0, hipPivot);
+for (let i = 0; i < 6; i++) {
+  const a = i / 6 * 6.283;
+  const pl = part(new THREE.BoxGeometry(.026, .27, .012), hairMat2, Math.sin(a) * .255, .02, Math.cos(a) * .255, hipPivot);
+  pl.rotation.y = a;
+  pl.position.x = Math.sin(a) * .255;
+  pl.position.z = Math.cos(a) * .255;
+  pl.material = skirtMat;
+}
 
-/* 头 */
+/* 上身：水手服 */
+const torso = part(new THREE.CapsuleGeometry(.16, .26, 6, 14), blouseMat, 0, .34, 0, hipPivot);
+torso.scale.set(1, 1, .78);
+/* 水手领（前 V + 后披） */
+part(new THREE.BoxGeometry(.3, .05, .02), navyMat, 0, .5, .085, hipPivot);
+const collarL = part(new THREE.BoxGeometry(.17, .05, .02), navyMat, -.09, .44, .105, hipPivot);
+collarL.rotation.z = -.55;
+const collarR = part(new THREE.BoxGeometry(.17, .05, .02), navyMat, .09, .44, .105, hipPivot);
+collarR.rotation.z = .55;
+part(new THREE.BoxGeometry(.28, .03, .14), navyMat, 0, .5, -.09, hipPivot);
+/* 胸前小蝴蝶结 */
+part(new THREE.ConeGeometry(.045, .09, 4), ribbonMat, -.05, .4, .1, hipPivot).rotation.z = Math.PI / 2;
+part(new THREE.ConeGeometry(.045, .09, 4), ribbonMat, .05, .4, .1, hipPivot).rotation.z = -Math.PI / 2;
+part(new THREE.SphereGeometry(.034, 8, 6), ribbonMat, 0, .4, .105, hipPivot);
+
+/* 脖子 */
 const neck = new THREE.Group();
 neck.position.set(0, .62, 0);
 hipPivot.add(neck);
 rig.neck = neck;
-part(new THREE.SphereGeometry(.215, 18, 14), skinMat, 0, .1, 0, neck).scale.set(.95, 1.05, .95);
-const hair = part(new THREE.SphereGeometry(.23, 18, 14), new THREE.MeshStandardMaterial({ color: 0x2b211b, roughness: .85 }), 0, .16, -.02, neck);
-hair.scale.set(1, .85, 1.02);
-part(new THREE.SphereGeometry(.032, 8, 6), new THREE.MeshBasicMaterial({ color: 0x20283a }), -.075, .1, .195, neck);
-part(new THREE.SphereGeometry(.032, 8, 6), new THREE.MeshBasicMaterial({ color: 0x20283a }), .075, .1, .195, neck);
+part(new THREE.CylinderGeometry(.055, .06, .1, 10), skinMat, 0, .02, 0, neck);
 
-/* 围巾 */
-const scarf = part(new THREE.TorusGeometry(.2, .055, 8, 18), scarfMat, 0, .58, 0, hipPivot);
-scarf.rotation.x = Math.PI / 2;
-rig.scarf = scarf;
-const scarfTail = part(new THREE.BoxGeometry(.12, .42, .05), scarfMat, .1, .38, -.2, hipPivot);
-scarfTail.rotation.z = .12;
+/* 头（二次元比例：偏大、脸偏平） */
+const head = part(new THREE.SphereGeometry(.255, 24, 18), skinMat, 0, .16, 0, neck);
+head.scale.set(1, .98, .94);
+/* 下巴收一点 */
+part(new THREE.SphereGeometry(.16, 18, 14), skinMat, 0, .03, .06, neck).scale.set(.85, .78, .9);
+
+/* 后发 + 长发 */
+const backHair = part(new THREE.SphereGeometry(.275, 24, 18), hairMat, 0, .2, -.03, neck);
+backHair.scale.set(1.02, .94, 1.0);
+const longHair = part(new THREE.CapsuleGeometry(.175, .26, 6, 14), hairMat2, 0, -.02, -.16, neck);
+longHair.scale.set(1.05, 1, .7);
+part(new THREE.SphereGeometry(.19, 16, 12), hairMat, 0, -.2, -.17, neck).scale.set(1, .6, .55);
+
+/* 刘海（五束） */
+for (let i = 0; i < 5; i++) {
+  const k = i - 2;
+  const tuft = part(new THREE.ConeGeometry(.062, .24 + Math.abs(k) * .03, 5), i % 2 ? hairMat2 : hairMat,
+    k * .085, .235, .16, neck);
+  tuft.rotation.z = Math.PI + k * .12;
+  tuft.rotation.x = -.18;
+}
+/* 鬓角 */
+part(new THREE.ConeGeometry(.055, .3, 5), hairMat2, -.255, .12, .03, neck).rotation.z = Math.PI - .12;
+part(new THREE.ConeGeometry(.055, .3, 5), hairMat2, .255, .12, .03, neck).rotation.z = Math.PI + .12;
+
+/* 眼睛：大 + 高光 + 睫毛 */
+function eye(side) {
+  const wx = side * .098;
+  part(new THREE.SphereGeometry(.068, 18, 14), eyeWhiteMat, wx, .135, .233, neck).scale.set(1, 1.35, .42);
+  part(new THREE.SphereGeometry(.048, 18, 14), irisMat, wx, .132, .256, neck).scale.set(1, 1.42, .42);
+  part(new THREE.SphereGeometry(.03, 14, 12), pupilMat, wx, .132, .271, neck).scale.set(1, 1.35, .4);
+  part(new THREE.SphereGeometry(.016, 10, 8), hiliteMat, wx - side * .018, .163, .286, neck);
+  part(new THREE.SphereGeometry(.009, 8, 6), hiliteMat, wx + side * .022, .112, .284, neck);
+  const lash = part(new THREE.BoxGeometry(.11, .014, .02), lashMat, wx, .196, .252, neck);
+  lash.rotation.z = -side * .1;
+  const brow = part(new THREE.BoxGeometry(.085, .012, .015), hairMat2, wx, .238, .252, neck);
+  brow.rotation.z = -side * .12;
+}
+eye(-1); eye(1);
+
+/* 腮红 + 嘴 */
+part(new THREE.CircleGeometry(.042, 16), blushMat, -.152, .075, .222, neck).rotation.y = -.55;
+part(new THREE.CircleGeometry(.042, 16), blushMat, .152, .075, .222, neck).rotation.y = .55;
+part(new THREE.BoxGeometry(.045, .012, .012), new THREE.MeshBasicMaterial({ color: 0xd17587 }), 0, .048, .245, neck);
+
+/* 双马尾 */
+function tail(side) {
+  const g = new THREE.Group();
+  g.position.set(side * .245, .26, -.1);
+  neck.add(g);
+  const seg = part(new THREE.CylinderGeometry(.085, .04, .62, 8), side < 0 ? hairMat : hairMat2, 0, -.3, 0, g);
+  seg.rotation.x = .1;
+  const tip = part(new THREE.SphereGeometry(.05, 10, 8), hairMat, 0, -.62, .04, g);
+  tip.scale.set(1, 1.4, 1);
+  g.rotation.z = side * .3;
+  g.rotation.x = -.22;
+  return g;
+}
+rig.tailL = tail(-1);
+rig.tailR = tail(1);
+
+/* 头上蝴蝶结 */
+const bow = part(new THREE.TorusGeometry(.052, .022, 6, 12), ribbonMat, 0, .36, -.2, neck);
+bow.rotation.x = 1.1;
+part(new THREE.ConeGeometry(.05, .1, 4), ribbonMat, -.1, .37, -.21, neck).rotation.z = Math.PI / 2;
+part(new THREE.ConeGeometry(.05, .1, 4), ribbonMat, .1, .37, -.21, neck).rotation.z = -Math.PI / 2;
+rig.scarf = bow;
+
+/* 后飘丝带（沿用 scarfTail 动画通道） */
+const scarfTail = part(new THREE.BoxGeometry(.11, .34, .025), ribbonMat, 0, .16, -.24, neck);
+scarfTail.rotation.x = -.35;
 rig.scarfTail = scarfTail;
 
-/* 手臂 */
+/* 手臂：泡泡袖 + 裸手 */
 function arm(side) {
   const sh = new THREE.Group();
-  sh.position.set(side * .31, .5, 0);
+  sh.position.set(side * .255, .48, 0);
   hipPivot.add(sh);
-  part(new THREE.CapsuleGeometry(.078, .34, 4, 10), coatMat, 0, -.19, 0, sh);
-  part(new THREE.SphereGeometry(.075, 10, 8), skinMat, 0, -.4, 0, sh);
+  const sleeve = part(new THREE.SphereGeometry(.082, 14, 12), blouseMat, 0, -.03, 0, sh);
+  sleeve.scale.set(1, 1.25, 1);
+  part(new THREE.CapsuleGeometry(.052, .24, 4, 10), skinMat, 0, -.22, 0, sh).scale.set(1.05, 1, 1.05);
+  part(new THREE.SphereGeometry(.062, 12, 10), skinMat, 0, -.4, .01, sh).scale.set(.9, 1.1, .95);
+  part(new THREE.SphereGeometry(.03, 10, 8), ribbonMat, 0, -.175, 0, sh).scale.set(1.15, .55, 1.15);
+  sh.rotation.z = side * -.1;
   return sh;
 }
 rig.armL = arm(-1);
 rig.armR = arm(1);
 
-/* 腿 */
+/* 腿：裸腿 + 白色过膝袜 + 小皮鞋 */
 function leg(side) {
   const hp = new THREE.Group();
-  hp.position.set(side * .12, 0, 0);
+  hp.position.set(side * .1, 0, 0);
   hipPivot.add(hp);
-  part(new THREE.CapsuleGeometry(.095, .34, 4, 10), pantsMat, 0, -.22, 0, hp);
-  part(new THREE.BoxGeometry(.16, .12, .28), bootMat, 0, -.46, .04, hp);
+  part(new THREE.CapsuleGeometry(.066, .2, 4, 10), skinMat, 0, -.14, 0, hp).scale.set(1.02, 1, 1.02);
+  const sock = part(new THREE.CapsuleGeometry(.064, .3, 4, 10), sockMat, 0, -.42, 0, hp);
+  sock.scale.set(1.05, 1, 1.05);
+  part(new THREE.CylinderGeometry(.068, .062, .06, 10), navyMat, 0, -.55, 0, hp);
+  part(new THREE.BoxGeometry(.12, .1, .22), shoeMat, 0, -.78, .025, hp);
+  part(new THREE.SphereGeometry(.062, 12, 10), shoeMat, 0, -.80, .07, hp).scale.set(1, .75, 1.3);
   return hp;
 }
 rig.legL = leg(-1);
@@ -593,7 +707,7 @@ scene.add(avatar);
 
 /* 角色脚下光圈 */
 const aura = new THREE.Mesh(new THREE.RingGeometry(.5, .72, 32),
-  new THREE.MeshBasicMaterial({ color: 0x9ff0e2, transparent: true, opacity: .22, side: THREE.DoubleSide }));
+  new THREE.MeshBasicMaterial({ color: 0xffc0dd, transparent: true, opacity: .26, side: THREE.DoubleSide }));
 aura.rotation.x = -Math.PI / 2;
 aura.position.y = .02;
 scene.add(aura);
@@ -994,8 +1108,8 @@ function drawMap() {
   mapCtx.save();
   mapCtx.translate(cxp, czp);
   mapCtx.rotate(-facing + Math.PI);
-  mapCtx.fillStyle = '#1f8f7e';
   mapCtx.beginPath();
+  mapCtx.fillStyle = '#1f8f7e';
   mapCtx.moveTo(0, -5.4);
   mapCtx.lineTo(-3.4, 4.2);
   mapCtx.lineTo(0, 2);
@@ -1039,6 +1153,12 @@ function loop() {
   if (window.__towerOrb) {
     window.__towerOrb.material.emissiveIntensity = 1.15 + Math.sin(t * 1.6) * .35;
     towerHalo.material.opacity = .12 + Math.sin(t * 1.6) * .05;
+  }
+  if (rig.tailL) {
+    const sw = Math.sin(t * 1.9) * .05 + Math.sin(walkPhase) * .006;
+    rig.tailL.rotation.z = -.3 - sw;
+    rig.tailR.rotation.z = .3 + sw;
+    rig.tailL.rotation.x = rig.tailR.rotation.x = -.22 + Math.sin(t * 1.3) * .04;
   }
 
   mapTimer += dt;
