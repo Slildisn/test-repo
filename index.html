@@ -94,7 +94,7 @@
 <div id="vig"></div>
 
 <div id="hud">
-  <div id="tip">左摇杆走 · 右侧拖动转视角</div>
+  <div id="tip">左摇杆走 · 拖动转视角 · 疾跑点一下</div>
   <div id="speed">STROLLING</div>
   <div id="stick"><div id="knob"></div></div>
   <div id="run">疾跑</div>
@@ -109,8 +109,8 @@
   <div class="tag">GARDEN ROAM · EXPLORE</div>
   <div class="sub">
     没有枪，也没人追你。走一圈看看塔、镜湖和石桥。<br>
-    手机：左摇杆移动 · 右侧拖动转视角 · 右下按住疾跑 · 右上点跳跃 · 左上可切第一/第三人称<br>
-    电脑：<span class="key">W A S D</span> 移动 · <span class="key">Shift</span> 疾跑 · <span class="key">空格</span> 跳 · <span class="key">V</span> 切视角 · <span class="key">拖动鼠标</span> 转视角 · <span class="key">滚轮</span> 远近
+    手机：左摇杆移动 · 右侧拖动转视角 · 右下点疾跑（再点一次停）· 跳跃键<br>
+    电脑：<span class="key">W A S D</span> 移动 · <span class="key">Shift</span> 疾跑 · 手机上点「疾跑」切换 · <span class="key">空格</span> 跳 · <span class="key">V</span> 切视角 · <span class="key">拖动鼠标</span> 转视角 · <span class="key">滚轮</span> 远近
   </div>
   <button id="start">开始漫游</button>
 </div>
@@ -668,7 +668,11 @@ addEventListener('touchstart', e => {
   if (!running) return;
   for (const t of e.changedTouches) {
     const p = toLocalPt(t.clientX, t.clientY);
-    if (inCircle(p, circleOf(runBtn))) { sprint = true; runBtn.classList.add('on'); continue; }
+    if (inCircle(p, circleOf(runBtn))) {
+      sprint = !sprint;
+      runBtn.classList.toggle('on', sprint);
+      continue;
+    }
     if (inCircle(p, circleOf(jumpBtn))) { doJump(); jumpBtn.classList.add('on'); continue; }
     if (inCircle(p, circleOf(stick)) && stickId === null) { stickId = t.identifier; continue; }
     if (lookId === null) { lookId = t.identifier; lookPrev = { x: p.x, y: p.y }; }
@@ -700,11 +704,10 @@ addEventListener('touchend', e => {
   for (const t of e.changedTouches) {
     if (t.identifier === stickId) { stickId = null; move.x = move.z = 0; knob.style.transform = 'translate(0,0)'; }
     if (t.identifier === lookId) lookId = null;
-    if (inCircle(toLocalPt(t.clientX, t.clientY), circleOf(runBtn))) { sprint = false; runBtn.classList.remove('on'); }
     jumpBtn.classList.remove('on');
   }
 }, { passive: false });
-addEventListener('touchcancel', () => { sprint = false; runBtn.classList.remove('on'); });
+addEventListener('touchcancel', () => { runBtn.classList.remove('on'); });
 
 /* ---------- 键盘 ---------- */
 const keys = {};
@@ -823,21 +826,32 @@ function update(dt) {
   speedEl.textContent = airborne ? 'AIRBORNE' : (mag > .02 ? (isSprint ? 'SPRINTING' : (inWater ? 'SPLASHING' : 'WALKING')) : 'STROLLING');
 }
 
+function camBlocked(px, py, pz) {
+  if (py < .42) return true;
+  if (Math.abs(px - BRIDGE.x) < BRIDGE.halfW + .2 && pz > BRIDGE.z0 - .3 && pz < BRIDGE.z1 + .3) {
+    if (py < heightAt(px, pz) + .3) return true;
+  }
+  if (Math.hypot(px - POND.x, pz - POND.z) < POND.r && py < .55) return true;
+  for (const b of blockers) {
+    if (py > (b.h || 1.6) + .2) continue;
+    if (Math.hypot(px - b.x, pz - b.z) < b.r + .28) return true;
+  }
+  return false;
+}
+
 function safeCamPos(head, want) {
   const delta = want.clone().sub(head);
   const len = delta.length();
   if (len < 1e-4) return want;
   const dir = delta.clone().divideScalar(len);
-  const step = .28;
-  for (let t = .5; t < len; t += step) {
+  const step = .25;
+  for (let t = .45; t < len; t += step) {
     const px = head.x + dir.x * t, py = head.y + dir.y * t, pz = head.z + dir.z * t;
-    if (py < .35) continue;
-    for (const b of blockers) {
-      if (py > (b.h || 1.6) + .2) continue;
-      if (Math.hypot(px - b.x, pz - b.z) < b.r + .28) {
-        const back = Math.max(1.1, t - step);
-        return head.clone().addScaledVector(dir, back);
-      }
+    if (camBlocked(px, py, pz)) {
+      const back = Math.max(.9, t - step);
+      const p = head.clone().addScaledVector(dir, back);
+      if (!camBlocked(p.x, p.y, p.z)) return p;
+      return head.clone().addScaledVector(dir, .9);
     }
   }
   return want;
