@@ -1,1 +1,157 @@
-PLACEHOLDER
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#bcdcf2">
+<title>铁墓 · 风之庭院</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{width:100%;height:100%;overflow:hidden;background:#bcdcf2;color:#20303f;
+    font-family:-apple-system,"PingFang SC","Noto Sans SC",sans-serif;user-select:none;touch-action:none;}
+  body.rot{position:fixed;top:0;left:0;width:100vh;height:100vw;transform-origin:top left;
+    transform:rotate(90deg) translateY(-100vw);}
+  canvas{display:block;width:100%;height:100%;}
+  #vig{position:fixed;inset:0;pointer-events:none;z-index:3;
+    background:radial-gradient(circle at 50% 46%,transparent 48%,rgba(20,40,60,.14) 100%);}
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:5;}
+  #tip{position:absolute;top:calc(14px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);
+    font-size:11px;letter-spacing:2px;color:#eaf6ff;padding:7px 14px;border-radius:20px;
+    background:rgba(24,52,78,.55);border:1px solid rgba(255,255,255,.18);white-space:nowrap;}
+  #speed{position:absolute;bottom:calc(18px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
+    font-size:10px;letter-spacing:3px;color:#e8f4ff;text-shadow:0 1px 3px rgba(0,30,50,.6);}
+  #stick{position:absolute;left:22px;bottom:calc(56px + env(safe-area-inset-bottom));width:118px;height:118px;
+    border-radius:50%;border:1px solid rgba(255,255,255,.35);
+    background:radial-gradient(circle,rgba(30,60,85,.18),rgba(255,255,255,.06));
+    box-shadow:inset 0 0 24px rgba(255,255,255,.14);}
+  #knob{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.92),rgba(150,205,235,.5));
+    box-shadow:0 0 18px rgba(255,255,255,.5);}
+  #run{position:absolute;right:26px;bottom:calc(58px + env(safe-area-inset-bottom));width:76px;height:76px;
+    border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:3px;color:#f2fffb;
+    border:1px solid rgba(255,255,255,.4);background:radial-gradient(circle,rgba(60,180,150,.4),rgba(20,90,80,.2));
+    box-shadow:0 2px 12px rgba(0,40,60,.25);}
+  #jump{position:absolute;right:calc(34px + env(safe-area-inset-right));bottom:calc(148px + env(safe-area-inset-bottom));
+    width:62px;height:62px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:10.5px;letter-spacing:3px;color:#fff6e8;border:1px solid rgba(255,255,255,.4);
+    background:radial-gradient(circle,rgba(240,170,90,.45),rgba(140,80,30,.2));
+    box-shadow:0 2px 12px rgba(60,35,10,.25);pointer-events:auto;}
+  #jump.on{background:radial-gradient(circle,rgba(255,225,160,.75),rgba(190,120,40,.45));}
+  #run.on{background:radial-gradient(circle,rgba(120,255,205,.7),rgba(20,150,120,.45));
+    box-shadow:0 0 26px rgba(60,230,180,.6);}
+  #mapwrap{position:absolute;top:calc(52px + env(safe-area-inset-top));right:calc(14px + env(safe-area-inset-right));
+    width:118px;height:118px;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.35);
+    box-shadow:0 4px 18px rgba(0,30,60,.28);background:rgba(22,44,60,.55);}
+  #mapwrap canvas{width:100%;height:100%;display:block;}
+  #coord{position:absolute;right:calc(14px + env(safe-area-inset-right));top:calc(175px + env(safe-area-inset-top));
+    font-size:9.5px;letter-spacing:1.5px;color:#eef8ff;text-shadow:0 1px 3px rgba(0,30,50,.65);font-variant-numeric:tabular-nums;}
+  #overlay{position:fixed;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:13px;padding:24px;text-align:center;
+    background:radial-gradient(circle at 50% 30%,rgba(150,205,238,.95),rgba(88,146,188,.96) 70%);}
+  #overlay h1{font-size:26px;letter-spacing:4px;color:#ffffff;text-shadow:0 2px 12px rgba(20,70,110,.55);}
+  #overlay .tag{font-size:10px;letter-spacing:6px;color:#e6f5ff;margin-top:-9px;}
+  #overlay .sub{font-size:12.5px;line-height:1.95;color:#f2f9ff;max-width:330px;text-shadow:0 1px 6px rgba(20,70,110,.4);}
+  #overlay .key{display:inline-block;border:1px solid rgba(255,255,255,.45);border-radius:5px;
+    padding:1px 6px;margin:0 2px;font-size:11px;color:#ffffff;background:rgba(255,255,255,.16);}
+  #start{margin-top:2px;padding:13px 40px;border-radius:30px;border:1px solid rgba(255,255,255,.7);
+    background:linear-gradient(180deg,rgba(255,255,255,.5),rgba(150,210,240,.32));color:#123246;
+    font-size:15px;letter-spacing:6px;font-weight:600;box-shadow:0 6px 22px rgba(15,60,95,.3);}
+  #start:active{transform:scale(.96);filter:brightness(1.1);}
+  @media (orientation:landscape){
+    #tip{top:10px;font-size:10px;padding:6px 12px;}
+    #stick{width:100px;height:100px;left:calc(16px + env(safe-area-inset-left));bottom:calc(30px + env(safe-area-inset-bottom));}
+    #knob{width:40px;height:40px;margin:-20px 0 0 -20px;}
+    #run{width:66px;height:66px;right:calc(20px + env(safe-area-inset-right));bottom:calc(30px + env(safe-area-inset-bottom));}
+    #jump{width:54px;height:54px;right:calc(24px + env(safe-area-inset-right));bottom:calc(104px + env(safe-area-inset-bottom));}
+    #speed{bottom:calc(8px + env(safe-area-inset-bottom));font-size:9px;}
+    #overlay{gap:9px;}
+    #overlay h1{font-size:20px;}
+    #overlay .sub{line-height:1.7;max-width:560px;}
+    #mapwrap{top:calc(44px + env(safe-area-inset-top));width:104px;height:104px;}
+    #coord{top:calc(154px + env(safe-area-inset-top));}
+  }
+  body.rot #tip{top:10px;font-size:10px;padding:6px 12px;}
+  body.rot #stick{width:100px;height:100px;left:16px;bottom:30px;}
+  body.rot #knob{width:40px;height:40px;margin:-20px 0 0 -20px;}
+  body.rot #run{width:66px;height:66px;right:20px;bottom:30px;}
+  body.rot #jump{width:58px;height:58px;right:24px;bottom:110px;}
+  body.rot #speed{bottom:8px;font-size:9px;}
+  body.rot #overlay{gap:9px;}
+  body.rot #overlay h1{font-size:20px;}
+  body.rot #overlay .sub{line-height:1.7;max-width:560px;}
+  body.rot #mapwrap{top:44px;right:14px;width:104px;height:104px;}
+  body.rot #coord{right:14px;top:154px;}
+  #view{position:absolute;left:calc(14px + env(safe-area-inset-left));top:calc(52px + env(safe-area-inset-top));
+    padding:7px 12px;border-radius:16px;font-size:10.5px;letter-spacing:2px;color:#f2faff;
+    border:1px solid rgba(255,255,255,.4);background:rgba(24,52,78,.6);pointer-events:auto;}
+  #view.fp{color:#fff0d2;border-color:rgba(255,225,170,.7);background:rgba(90,60,24,.7);}
+  body.rot #view{left:14px;top:44px;}
+  #take{position:absolute;left:calc(14px + env(safe-area-inset-left));top:calc(96px + env(safe-area-inset-top));
+    padding:7px 12px;border-radius:16px;font-size:10.5px;letter-spacing:2px;color:#fff4e2;
+    border:1px solid rgba(255,222,170,.55);background:rgba(72,50,24,.62);pointer-events:auto;}
+  #fire{position:absolute;right:calc(30px + env(safe-area-inset-right));bottom:calc(226px + env(safe-area-inset-bottom));
+    width:78px;height:78px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:12px;letter-spacing:4px;color:#fff3ea;border:1px solid rgba(255,190,160,.7);
+    background:radial-gradient(circle,rgba(210,70,60,.55),rgba(110,25,20,.35));
+    box-shadow:0 4px 16px rgba(80,20,10,.35);pointer-events:auto;}
+  #fire.on{background:radial-gradient(circle,rgba(255,170,120,.85),rgba(190,60,40,.6));
+    box-shadow:0 0 28px rgba(255,120,80,.6);}
+  #wstat{position:absolute;right:calc(14px + env(safe-area-inset-right));top:calc(192px + env(safe-area-inset-top));
+    font-size:9.5px;letter-spacing:1.5px;color:#fff3e6;text-shadow:0 1px 3px rgba(0,20,40,.7);}
+  #cross{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;
+    border-radius:50%;border:1px solid rgba(255,240,210,.5);display:none;pointer-events:none;
+    box-shadow:0 0 12px rgba(255,180,120,.28),inset 0 0 6px rgba(255,210,170,.18);}
+  #cross::before,#cross::after{content:'';position:absolute;background:rgba(255,240,215,.65);}
+  #cross::before{left:50%;top:-5px;width:1px;height:5px;margin-left:-.5px;}
+  #cross::after{left:50%;bottom:-5px;width:1px;height:5px;margin-left:-.5px;}
+  #cross i{position:absolute;left:50%;top:50%;width:2px;height:2px;margin:-1px 0 0 -1px;
+    border-radius:50%;background:rgba(255,236,200,.9);}
+  body.rot #take{left:14px;top:96px;}
+  body.rot #fire{width:70px;height:70px;right:24px;bottom:186px;}
+  body.rot #wstat{right:14px;top:190px;}
+  @media (orientation:landscape){
+    #take{top:88px;}
+    #fire{width:66px;height:66px;right:calc(24px + env(safe-area-inset-right));bottom:calc(168px + env(safe-area-inset-bottom));}
+  }
+  @media (max-height:420px){#overlay .sub{display:none;}}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="vig"></div>
+<div id="hud">
+  <div id="tip">左摇杆走 · 拖动转视角 · 疾跑点一下</div>
+  <div id="speed">STROLLING</div>
+  <div id="stick"><div id="knob"></div></div>
+  <div id="run">疾跑</div>
+  <div id="jump">跳跃</div>
+  <div id="mapwrap"><canvas id="map" width="236" height="236"></canvas></div>
+  <div id="coord">X 0 · Z 0</div>
+  <div id="view">第一人称</div>
+  <div id="take">拿枪</div>
+  <div id="fire">开火</div>
+  <div id="wstat">空手 · 命中 0</div>
+  <div id="cross"><i></i></div>
+</div>
+<div id="overlay">
+  <h1>铁墓 · 风之庭院</h1>
+  <div class="tag">GARDEN ROAM · DAYLIGHT</div>
+  <div class="sub">
+    晴天的庭院，没人追你。路边的武器架上摆着几把没人用的枪。走一圈看看塔、镜湖和石桥。<br>
+    手机：左摇杆移动 · 右侧拖动转视角 · 右下点疾跑（再点一次停）· 跳跃键 · 武器架旁点「拿枪」· 右中「开火」<br>
+    电脑：<span class="key">W A S D</span> 移动 · <span class="key">Shift</span> 疾跑 · 手机上点「疾跑」切换 · <span class="key">空格</span> 跳 · <span class="key">V</span> 切视角 · <span class="key">E</span> 拿枪/换枪 · <span class="key">左键 / J</span> 开火 · <span class="key">拖动鼠标</span> 转视角 · <span class="key">滚轮</span> 远近
+  </div>
+  <button id="start">开始漫游</button>
+</div>
+<script src="https://fastly.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+  if (typeof THREE === 'undefined') {
+    document.getElementById('overlay').innerHTML = '<h1 style="font-size:22px">启动失败</h1><div class="sub">三维库加载失败，检查网络后刷新。</div>';
+  }
+</script>
+<script src="g1.js"></script>
+<script src="g2.js"></script>
+<script src="g3.js"></script>
+<script src="g4.js"></script>
+</body>
+</html>
