@@ -406,12 +406,19 @@ function heightAt(x, z) {
   glow.position.set(POND.x, 1.2, POND.z);
   scene.add(glow);
 
-  for (let i = 0; i < 4; i++) {
-    const m = new THREE.Mesh(new THREE.RingGeometry(.7, .95, 30),
-      new THREE.MeshBasicMaterial({ color: 0x9fe8ff, transparent: true, opacity: .3,
+  for (let i = 0; i < 5; i++) {
+    const m = new THREE.Mesh(new THREE.RingGeometry(.22, .34, 28),
+      new THREE.MeshBasicMaterial({ color: 0x9fe8ff, transparent: true, opacity: .22,
         side: THREE.DoubleSide, depthWrite: false }));
     m.rotation.x = -Math.PI / 2;
-    m.position.set(POND.x + (Math.random() - .5) * 8, .08, POND.z + (Math.random() - .5) * 8);
+    let rx, rz, tries = 0;
+    do {
+      const a = Math.random() * 6.283, rr = Math.random() * (POND.r - 3.2);
+      rx = POND.x + Math.sin(a) * rr;
+      rz = POND.z + Math.cos(a) * rr;
+      tries++;
+    } while ((Math.abs(rx - BRIDGE.x) < 4.2 && rz > BRIDGE.z0 - 2 && rz < BRIDGE.z1 + 2) && tries < 25);
+    m.position.set(rx, .09, rz);
     scene.add(m);
     ripples.push({ mesh: m, t: Math.random() });
   }
@@ -434,6 +441,7 @@ function heightAt(x, z) {
   const railMat = new THREE.MeshStandardMaterial({ color: 0x6d6d7a, roughness: .9 });
   const len = BRIDGE.z1 - BRIDGE.z0;
   const steps = 22;
+  const pierMat0 = new THREE.MeshStandardMaterial({ color: 0x777784, roughness: .95, flatShading: true });
   for (let i = 0; i < steps; i++) {
     const t = (i + .5) / steps;
     const z = BRIDGE.z0 + t * len;
@@ -443,12 +451,22 @@ function heightAt(x, z) {
     slab.castShadow = true; slab.receiveShadow = true;
     g.add(slab);
 
-    if (i % 2 === 0) {
+    // 连续矮护栏（原来隔一块才有，容易看成断裂）
+    for (const side of [-1, 1]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(.14, .62, len / steps + .04), railMat);
+      rail.position.set(BRIDGE.x + side * (BRIDGE.halfW - .1), y + .26, z);
+      rail.castShadow = true;
+      g.add(rail);
+    }
+
+    // 桥腹实心侧墙：从水面一直填到桥面，低角度不会看穿桥体
+    if (y > .12) {
       for (const side of [-1, 1]) {
-        const rail = new THREE.Mesh(new THREE.BoxGeometry(.16, 1, len / steps * 1.6), railMat);
-        rail.position.set(BRIDGE.x + side * (BRIDGE.halfW - .12), y + .45, z);
-        rail.castShadow = true;
-        g.add(rail);
+        const wallH = Math.max(.14, y - .02);
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(.16, wallH, len / steps + .05), pierMat0);
+        wall.position.set(BRIDGE.x + side * (BRIDGE.halfW - .06), .06 + wallH / 2, z);
+        wall.castShadow = true; wall.receiveShadow = true;
+        g.add(wall);
       }
     }
   }
@@ -586,6 +604,7 @@ const move = { x: 0, z: 0 };
 let running = false, sprint = false, shiftDown = false;
 let firstPerson = false;
 let walkPhase = 0, camReady = false;
+let bobY = 0;
 let yVel = 0, airborne = false;
 
 const camPos = new THREE.Vector3(0, 2.4, 12);
@@ -750,7 +769,8 @@ function blockedAt(x, z) {
 
 let facing = Math.PI;
 
-const JUMP_V = 5.4, GRAVITY = 13;
+const JUMP_V = 5.9, GRAVITY = 14;
+let landPulse = 0;
 function doJump() {
   if (!running || airborne) return;
   yVel = JUMP_V;
@@ -798,15 +818,19 @@ function update(dt) {
   if (airborne) {
     yVel -= GRAVITY * dt;
     avatar.position.y += yVel * dt;
-    if (avatar.position.y <= groundY) { avatar.position.y = groundY; yVel = 0; airborne = false; }
+    if (avatar.position.y <= groundY && yVel <= 0) {
+      avatar.position.y = groundY; yVel = 0; airborne = false; landPulse = 1;
+    }
   } else {
     avatar.position.y = THREE.MathUtils.lerp(avatar.position.y, groundY, Math.min(1, dt * 12));
     if (Math.abs(avatar.position.y - groundY) < .003) avatar.position.y = groundY;
   }
+  landPulse = Math.max(0, landPulse - dt * 3.4);
 
   const gait = mag > .02 ? (isSprint ? 11.5 : 7.4) : 2.2;
   walkPhase += dt * gait * (mag > .02 ? 1 : .35);
   const amp = mag > .02 ? (isSprint ? .78 : .48) * mag : .055;
+  bobY = (mag > .02 && !airborne) ? Math.abs(Math.sin(walkPhase)) * (isSprint ? .07 : .045) : 0;
 
   rig.legL.rotation.x = Math.sin(walkPhase) * amp;
   rig.legR.rotation.x = -Math.sin(walkPhase) * amp;
@@ -814,7 +838,14 @@ function update(dt) {
   rig.armR.rotation.x = Math.sin(walkPhase) * amp * .85;
   rig.armL.rotation.z = .12 + (isSprint ? .16 : 0);
   rig.armR.rotation.z = -.12 - (isSprint ? .16 : 0);
-  rig.hip.position.y = .92 + Math.abs(Math.sin(walkPhase)) * (mag > .02 ? .06 : .012);
+  if (airborne) {
+    rig.legL.rotation.x = -.5; rig.legR.rotation.x = .32;
+    rig.armL.rotation.x = -1.6; rig.armR.rotation.x = -1.6;
+    rig.armL.rotation.z = .35; rig.armR.rotation.z = -.35;
+    rig.hip.rotation.x = -.12;
+    rig.scarfTail.rotation.x = -1.2;
+  }
+  rig.hip.position.y = .92 + Math.abs(Math.sin(walkPhase)) * (mag > .02 ? .06 : .012) - landPulse * .12;
   rig.hip.rotation.x = mag > .02 ? (isSprint ? -.16 : -.05) : Math.sin(walkPhase) * .01;
   rig.neck.rotation.x = mag > .02 ? -.06 : Math.sin(walkPhase * .5) * .02;
   rig.scarfTail.rotation.x = -Math.sin(walkPhase + .6) * (.18 + mag * .3) - (isSprint ? .5 : .15);
@@ -858,7 +889,7 @@ function safeCamPos(head, want) {
 }
 
 function updateCamera(dt) {
-  const eyeY = firstPerson ? 1.62 : 1.28;
+  const eyeY = firstPerson ? 1.62 + bobY * .8 : 1.28;
   const head = new THREE.Vector3(avatar.position.x, eyeY + avatar.position.y, avatar.position.z);
 
   if (firstPerson) {
@@ -988,11 +1019,11 @@ function loop() {
     l.orb.material.emissiveIntensity = 1.9 + k * .6;
   }
   for (const rp of ripples) {
-    rp.t += dt * .32;
+    rp.t += dt * .4;
     if (rp.t > 1) rp.t -= 1;
-    const k = 1 + rp.t * 2.2;
+    const k = 1 + rp.t * 1.4;
     rp.mesh.scale.setScalar(k);
-    rp.mesh.material.opacity = (1 - rp.t) * .42;
+    rp.mesh.material.opacity = (1 - rp.t) * .26;
   }
   if (window.__towerOrb) {
     window.__towerOrb.material.emissiveIntensity = 2.2 + Math.sin(t * 1.6) * .7;
