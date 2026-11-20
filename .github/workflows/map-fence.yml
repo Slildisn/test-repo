@@ -1,0 +1,33 @@
+name: map-fence
+on:
+  push:
+    paths:
+      - '.github/workflows/map-fence.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix fence radius
+        run: |
+          python3 - <<'PY'
+          p='index.html'
+          s=open(p,encoding='utf-8').read()
+          old='const x = Math.sin(a) * (GROUND - 6), z = Math.cos(a) * (GROUND - 6);'
+          new='const x = Math.sin(a) * (GROUND - 4), z = Math.cos(a) * (GROUND - 4);'
+          if old in s:
+              s=s.replace(old,new,1)
+              open(p,'w',encoding='utf-8').write(s)
+              print('fence fixed')
+          else:
+              print('anchor not found')
+          print('GROUND:', 'const GROUND = 60;' in s)
+          print('trees:', 'i < 64' in s, 'rocks:', 'i < 42' in s, 'posts:', 'i < 132' in s)
+          PY
+          git config user.name 'map-bot'
+          git config user.email '543015384@qq.com'
+          git add index.html
+          git diff --cached --quiet && echo 'no change' || git commit -m 'fix(map): 围栏扩到大地图边界'
+          git push
