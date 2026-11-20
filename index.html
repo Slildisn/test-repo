@@ -73,6 +73,11 @@
   body.rot #overlay .sub{line-height:1.7;max-width:560px;}
   body.rot #mapwrap{top:44px;right:14px;width:104px;height:104px;}
   body.rot #coord{right:14px;top:154px;}
+  #view{position:absolute;left:calc(14px + env(safe-area-inset-left));top:calc(52px + env(safe-area-inset-top));
+    padding:7px 12px;border-radius:16px;font-size:10.5px;letter-spacing:2px;color:#cfe6ff;
+    border:1px solid rgba(140,190,255,.3);background:rgba(12,18,32,.75);pointer-events:auto;}
+  #view.fp{color:#ffe6b8;border-color:rgba(255,200,120,.5);background:rgba(40,26,12,.75);}
+  body.rot #view{left:14px;top:44px;}
   @media (max-height:420px){#overlay .sub{display:none;}}
 </style>
 </head>
@@ -87,6 +92,7 @@
   <div id="run">疾跑</div>
   <div id="mapwrap"><canvas id="map" width="236" height="236"></canvas></div>
   <div id="coord">X 0 · Z 0</div>
+  <div id="view">第一人称</div>
 </div>
 
 <div id="overlay">
@@ -94,8 +100,8 @@
   <div class="tag">GARDEN ROAM · EXPLORE</div>
   <div class="sub">
     没有枪，也没人追你。走一圈看看塔、镜湖和石桥。<br>
-    手机：左摇杆移动 · 右侧拖动转视角 · 右下按住疾跑<br>
-    电脑：<span class="key">W A S D</span> 移动 · <span class="key">Shift</span> 疾跑 · <span class="key">拖动鼠标</span> 转视角 · <span class="key">滚轮</span> 远近
+    手机：左摇杆移动 · 右侧拖动转视角 · 右下按住疾跑 · 左上可切第一/第三人称<br>
+    电脑：<span class="key">W A S D</span> 移动 · <span class="key">Shift</span> 疾跑 · <span class="key">V</span> 切视角 · <span class="key">拖动鼠标</span> 转视角 · <span class="key">滚轮</span> 远近
   </div>
   <button id="start">开始漫游</button>
 </div>
@@ -529,6 +535,7 @@ let camYaw = 0, camPitch = .38, camDist = 6.2;
 let lookId = null, lookPrev = { x: 0, y: 0 }, stickId = null;
 const move = { x: 0, z: 0 };
 let running = false, sprint = false, shiftDown = false;
+let firstPerson = false;
 let walkPhase = 0, camReady = false;
 
 const camPos = new THREE.Vector3(0, 2.4, 12);
@@ -576,6 +583,22 @@ const runBtn = document.getElementById('run');
 const speedEl = document.getElementById('speed');
 const overlay = document.getElementById('overlay');
 const startBtn = document.getElementById('start');
+const viewBtn = document.getElementById('view');
+
+function clampPitch(v) {
+  return THREE.MathUtils.clamp(v, firstPerson ? -1.15 : .04, firstPerson ? 1.25 : 1.05);
+}
+function setView(fp) {
+  firstPerson = fp;
+  avatar.visible = !fp;
+  aura.visible = !fp;
+  viewBtn.textContent = fp ? '第三人称' : '第一人称';
+  viewBtn.classList.toggle('fp', fp);
+  if (!fp) camPitch = THREE.MathUtils.clamp(camPitch, .04, 1.05);
+  camReady = false;
+}
+viewBtn.addEventListener('click', e => { e.stopPropagation(); setView(!firstPerson); });
+viewBtn.addEventListener('touchstart', e => { e.stopPropagation(); e.preventDefault(); setView(!firstPerson); }, { passive: false });
 
 function circleOf(el) {
   const r = el.getBoundingClientRect();
@@ -608,7 +631,7 @@ addEventListener('touchmove', e => {
       move.x = dx / max; move.z = -dy / max;
     } else if (t.identifier === lookId) {
       camYaw -= (p.x - lookPrev.x) * .0055;
-      camPitch = THREE.MathUtils.clamp(camPitch + (p.y - lookPrev.y) * .0035, .04, 1.05);
+      camPitch = clampPitch(camPitch + (p.y - lookPrev.y) * .0035);
       lookPrev = { x: p.x, y: p.y };
     }
   }
@@ -631,6 +654,7 @@ addEventListener('keydown', e => {
   keys[k] = true;
   if (k === 'shift') shiftDown = true;
   if (k === ' ') overlay.style.display = 'none';
+  if (k === 'v' || k === 'f') setView(!firstPerson);
 });
 addEventListener('keyup', e => {
   const k = e.key.toLowerCase();
@@ -643,7 +667,7 @@ addEventListener('mouseup', () => { dragging = false; });
 addEventListener('mousemove', e => {
   if (!dragging) return;
   camYaw -= (e.clientX - dragPrev.x) * .005;
-  camPitch = THREE.MathUtils.clamp(camPitch + (e.clientY - dragPrev.y) * .003, .04, 1.05);
+  camPitch = clampPitch(camPitch + (e.clientY - dragPrev.y) * .003);
   dragPrev = { x: e.clientX, y: e.clientY };
 });
 cv.addEventListener('wheel', e => {
@@ -725,7 +749,23 @@ function update(dt) {
 }
 
 function updateCamera(dt) {
-  const head = new THREE.Vector3(avatar.position.x, 1.28 + avatar.position.y, avatar.position.z);
+  const eyeY = firstPerson ? 1.62 : 1.28;
+  const head = new THREE.Vector3(avatar.position.x, eyeY + avatar.position.y, avatar.position.z);
+
+  if (firstPerson) {
+    const dir = new THREE.Vector3(
+      -Math.sin(camYaw) * Math.cos(camPitch),
+      -Math.sin(camPitch),
+      -Math.cos(camYaw) * Math.cos(camPitch)
+    );
+    camPos.lerp(head, camReady ? Math.min(1, dt * 14) : 1);
+    camReady = true;
+    camTarget.copy(camPos).add(dir);
+    camera.position.copy(camPos);
+    camera.lookAt(camTarget);
+    return;
+  }
+
   const off = new THREE.Vector3(
     Math.sin(camYaw) * Math.cos(camPitch),
     Math.sin(camPitch),
