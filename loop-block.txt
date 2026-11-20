@@ -1,0 +1,14 @@
+  for (const rp of ripples) {
+    rp.t += dt * .32;
+    if (rp.t > 1) rp.t -= 1;
+    const k = 1 + rp.t * 2.2;
+    rp.mesh.scale.setScalar(k);
+    rp.mesh.material.opacity = (1 - rp.t) * .42;
+  }
+  if (window.__towerOrb) {
+    window.__towerOrb.material.emissiveIntensity = 2.2 + Math.sin(t * 1.6) * .7;
+    towerHalo.material.opacity = .3 + Math.sin(t * 1.6) * .12;
+  }
+
+  mapTimer += dt;
+  if (mapTimer > .12) { mapTimer = 0; drawMap(); }
