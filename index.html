@@ -874,16 +874,20 @@ function camBlocked(px, py, pz) {
 function safeCamPos(head, want) {
   const delta = want.clone().sub(head);
   const len = delta.length();
-  if (len < 1e-4) return want;
+  if (len < 1e-4) return head.clone();
   const dir = delta.clone().divideScalar(len);
-  const step = .25;
-  for (let t = .45; t < len; t += step) {
+  for (let t = .45; t < len; t += .25) {
     const px = head.x + dir.x * t, py = head.y + dir.y * t, pz = head.z + dir.z * t;
     if (camBlocked(px, py, pz)) {
-      const back = Math.max(.9, t - step);
-      const p = head.clone().addScaledVector(dir, back);
-      if (!camBlocked(p.x, p.y, p.z)) return p;
-      return head.clone().addScaledVector(dir, .9);
+      // 从阻挡点开始逐步回退，必须落在真正的空处，绝不返回未验证的位置
+      for (let b = Math.max(.28, t - .2); b >= .28; b -= .06) {
+        const q = head.clone().addScaledVector(dir, b);
+        if (!camBlocked(q.x, q.y, q.z)) return q;
+      }
+      // 全被挡：直接贴着角色头顶，宁可拉近也不钻进模型
+      const q = head.clone().addScaledVector(dir, .28);
+      q.y = head.y + .12;
+      return q;
     }
   }
   return want;
@@ -915,9 +919,15 @@ function updateCamera(dt) {
   const want = head.clone().add(off);
   want.y = Math.max(want.y, .6);
 
+  // 站在桥上 / 桥边时，强制把相机抬到桥面之上，避免贴到桥板底面
+  const nearBridge = Math.abs(avatar.position.x - BRIDGE.x) < BRIDGE.halfW + 2.4
+    && avatar.position.z > BRIDGE.z0 - 3 && avatar.position.z < BRIDGE.z1 + 3;
+  if (nearBridge) want.y = Math.max(want.y, avatar.position.y + 2.1);
+
   let okPos = safeCamPos(head, want);
 
   camPos.lerp(okPos, camReady ? Math.min(1, dt * 6) : 1);
+  if (camBlocked(camPos.x, camPos.y, camPos.z)) camPos.copy(okPos);
   camReady = true;
   camTarget.lerp(head, Math.min(1, dt * 8));
   camera.position.copy(camPos);
