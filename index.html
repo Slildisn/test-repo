@@ -208,10 +208,15 @@ for (let i = 0; i < 62; i++) {
   scene.add(s);
 }
 
+/* 地标坐标（提前定义，供场景布置避让使用） */
+const TOWER = { x: -25, z: -24, r: 3.2 };
+const POND = { x: 18, z: -26, r: 9 };
+const BRIDGE = { x: 18, halfW: 1.9, z0: -38.5, z1: -13.5, h: 1.6 };
+
 /* ---------- 碰撞体 ---------- */
 const blockers = [];
 const mapTrees = [], mapRocks = [];
-function addBlock(x, z, r) { blockers.push({ x, z, r }); }
+function addBlock(x, z, r, h) { blockers.push({ x, z, r, h: h || 1.6 }); }
 
 /* ---------- 道具 ---------- */
 const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3a2c, roughness: .9 });
@@ -232,12 +237,18 @@ function tree(x, z, s) {
   g.scale.setScalar(s);
   g.rotation.y = Math.random() * 6.28;
   scene.add(g);
-  addBlock(x, z, .55 * s);
+  addBlock(x, z, .55 * s, 4 * s);
   mapTrees.push({ x, z });
 }
 for (let i = 0; i < 64; i++) {
-  const a = Math.random() * 6.28, r = 12 + Math.random() * (GROUND - 18);
-  tree(Math.sin(a) * r, Math.cos(a) * r, .85 + Math.random() * .55);
+  let a = Math.random() * 6.28, r = 12 + Math.random() * (GROUND - 18);
+  let x = Math.sin(a) * r, z = Math.cos(a) * r;
+  for (let k = 0; k < 20 && nearLandmark(x, z, 2.6); k++) {
+    a = Math.random() * 6.28; r = 12 + Math.random() * (GROUND - 18);
+    x = Math.sin(a) * r; z = Math.cos(a) * r;
+  }
+  if (nearLandmark(x, z, 2.6)) continue;
+  tree(x, z, .85 + Math.random() * .55);
 }
 
 function rock(x, z, s) {
@@ -247,12 +258,18 @@ function rock(x, z, s) {
   m.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
   m.castShadow = true; m.receiveShadow = true;
   scene.add(m);
-  addBlock(x, z, s * .75);
+  addBlock(x, z, s * .75, s * 1.5);
   mapRocks.push({ x, z });
 }
 for (let i = 0; i < 42; i++) {
-  const a = Math.random() * 6.28, r = 8 + Math.random() * (GROUND - 12);
-  rock(Math.sin(a) * r, Math.cos(a) * r, .5 + Math.random() * .7);
+  let a = Math.random() * 6.28, r = 8 + Math.random() * (GROUND - 12);
+  let x = Math.sin(a) * r, z = Math.cos(a) * r;
+  for (let k = 0; k < 20 && nearLandmark(x, z, 3); k++) {
+    a = Math.random() * 6.28; r = 8 + Math.random() * (GROUND - 12);
+    x = Math.sin(a) * r; z = Math.cos(a) * r;
+  }
+  if (nearLandmark(x, z, 3)) continue;
+  rock(x, z, .5 + Math.random() * .7);
 }
 
 /* 灯笼 */
@@ -272,7 +289,7 @@ function lantern(x, z) {
   g.position.set(x, 0, z);
   scene.add(g);
   lanterns.push({ orb, light: pl, phase: Math.random() * 6.28 });
-  addBlock(x, z, .3);
+  addBlock(x, z, .3, 3);
 }
 lantern(-4.5, 6); lantern(4.5, 6); lantern(-5, -5); lantern(5, -5);
 
@@ -291,11 +308,15 @@ for (let i = 0; i < 132; i++) {
 scene.add(ring);
 
 /* ---------- 地标：高塔 / 镜湖 / 石桥 ---------- */
-const TOWER = { x: -25, z: -24, r: 3.2 };
-const POND = { x: 18, z: -26, r: 9 };
-const BRIDGE = { x: 18, halfW: 1.9, z0: -38.5, z1: -13.5, h: 1.6 };
 const ripples = [];
 const pondCircles = [];
+
+function nearLandmark(x, z, pad) {
+  if (Math.hypot(x - POND.x, z - POND.z) < POND.r + pad) return true;
+  if (Math.hypot(x - TOWER.x, z - TOWER.z) < TOWER.r + pad) return true;
+  if (Math.abs(x - BRIDGE.x) < BRIDGE.halfW + pad + .8 && z > BRIDGE.z0 - pad - 1 && z < BRIDGE.z1 + pad + 1) return true;
+  return false;
+}
 
 function heightAt(x, z) {
   if (Math.abs(x - BRIDGE.x) <= BRIDGE.halfW && z > BRIDGE.z0 && z < BRIDGE.z1) {
@@ -352,7 +373,7 @@ function heightAt(x, z) {
   g.position.set(TOWER.x, 0, TOWER.z);
   g.rotation.y = .6;
   scene.add(g);
-  addBlock(TOWER.x, TOWER.z, TOWER.r);
+  addBlock(TOWER.x, TOWER.z, TOWER.r, 14);
   window.__towerOrb = orb;
 })();
 
@@ -422,6 +443,25 @@ function heightAt(x, z) {
       }
     }
   }
+
+  // 引道 + 桥墩：让桥不再悬空
+  const pierMat = new THREE.MeshStandardMaterial({ color: 0x6f6f7c, roughness: .95, flatShading: true });
+  for (const t of [0, 1]) {
+    const z = BRIDGE.z0 + t * len;
+    const abut = new THREE.Mesh(new THREE.BoxGeometry(BRIDGE.halfW * 2 + .5, 1.1, 1.8), pierMat);
+    abut.position.set(BRIDGE.x, .45, z + (t === 0 ? -0.7 : 0.7));
+    abut.castShadow = true; abut.receiveShadow = true;
+    g.add(abut);
+  }
+  for (const t of [.3, .7]) {
+    const z = BRIDGE.z0 + t * len;
+    const deckY = Math.sin(Math.PI * t) * BRIDGE.h;
+    const pier = new THREE.Mesh(new THREE.CylinderGeometry(.55, .75, deckY + .6, 10), pierMat);
+    pier.position.set(BRIDGE.x, (deckY - .9) / 2 + .45, z);
+    pier.castShadow = true;
+    g.add(pier);
+  }
+
   scene.add(g);
 })();
 
@@ -748,6 +788,26 @@ function update(dt) {
   speedEl.textContent = mag > .02 ? (isSprint ? 'SPRINTING' : (inWater ? 'SPLASHING' : 'WALKING')) : 'STROLLING';
 }
 
+function safeCamPos(head, want) {
+  const delta = want.clone().sub(head);
+  const len = delta.length();
+  if (len < 1e-4) return want;
+  const dir = delta.clone().divideScalar(len);
+  const step = .28;
+  for (let t = .5; t < len; t += step) {
+    const px = head.x + dir.x * t, py = head.y + dir.y * t, pz = head.z + dir.z * t;
+    if (py < .35) continue;
+    for (const b of blockers) {
+      if (py > (b.h || 1.6) + .2) continue;
+      if (Math.hypot(px - b.x, pz - b.z) < b.r + .28) {
+        const back = Math.max(1.1, t - step);
+        return head.clone().addScaledVector(dir, back);
+      }
+    }
+  }
+  return want;
+}
+
 function updateCamera(dt) {
   const eyeY = firstPerson ? 1.62 : 1.28;
   const head = new THREE.Vector3(avatar.position.x, eyeY + avatar.position.y, avatar.position.z);
@@ -774,16 +834,7 @@ function updateCamera(dt) {
   const want = head.clone().add(off);
   want.y = Math.max(want.y, .6);
 
-  let okPos = want.clone();
-  for (const b of blockers) {
-    const flat = Math.hypot(okPos.x - b.x, okPos.z - b.z);
-    const minR = b.r + .3;
-    if (flat < minR) {
-      const k = minR / (flat || 1);
-      okPos.x = b.x + (okPos.x - b.x) * k;
-      okPos.z = b.z + (okPos.z - b.z) * k;
-    }
-  }
+  let okPos = safeCamPos(head, want);
 
   camPos.lerp(okPos, camReady ? Math.min(1, dt * 6) : 1);
   camReady = true;
