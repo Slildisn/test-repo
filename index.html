@@ -260,7 +260,7 @@ const fenceMat = new THREE.MeshStandardMaterial({ color: 0x33404f, roughness: .9
 const ring = new THREE.Group();
 for (let i = 0; i < 64; i++) {
   const a = i / 132 * 6.283;
-  const x = Math.sin(a) * (GROUND - 6), z = Math.cos(a) * (GROUND - 6);
+  const x = Math.sin(a) * (GROUND - 4), z = Math.cos(a) * (GROUND - 4);
   const post = new THREE.Mesh(new THREE.BoxGeometry(.12, 1.1, .12), fenceMat);
   post.position.set(x, .55, z);
   post.rotation.y = a;
