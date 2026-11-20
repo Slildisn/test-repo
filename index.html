@@ -446,8 +446,8 @@ function heightAt(x, z) {
     const t = (i + .5) / steps;
     const z = BRIDGE.z0 + t * len;
     const y = Math.sin(Math.PI * t) * BRIDGE.h;
-    const slab = new THREE.Mesh(new THREE.BoxGeometry(BRIDGE.halfW * 2 - .1, .18, len / steps + .06), slabMat);
-    slab.position.set(BRIDGE.x, y - .06, z);
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(BRIDGE.halfW * 2 - .1, .14, len / steps + .22), slabMat);
+    slab.position.set(BRIDGE.x, y - .09, z);
     slab.castShadow = true; slab.receiveShadow = true;
     g.add(slab);
 
@@ -471,20 +471,21 @@ function heightAt(x, z) {
     }
   }
 
-  // 引道 + 桥墩：让桥不再悬空
+  // 引道 + 桥墩：全部压在桥面以下，桥面上不再冒出石块
   const pierMat = new THREE.MeshStandardMaterial({ color: 0x6f6f7c, roughness: .95, flatShading: true });
   for (const t of [0, 1]) {
     const z = BRIDGE.z0 + t * len;
-    const abut = new THREE.Mesh(new THREE.BoxGeometry(BRIDGE.halfW * 2 + .5, 1.1, 1.8), pierMat);
-    abut.position.set(BRIDGE.x, .45, z + (t === 0 ? -0.7 : 0.7));
+    const abut = new THREE.Mesh(new THREE.BoxGeometry(BRIDGE.halfW * 2 + .5, .5, 1.6), pierMat);
+    abut.position.set(BRIDGE.x, -.1, z + (t === 0 ? -0.85 : 0.85));
     abut.castShadow = true; abut.receiveShadow = true;
     g.add(abut);
   }
   for (const t of [.3, .7]) {
     const z = BRIDGE.z0 + t * len;
     const deckY = Math.sin(Math.PI * t) * BRIDGE.h;
-    const pier = new THREE.Mesh(new THREE.CylinderGeometry(.55, .75, deckY + .6, 10), pierMat);
-    pier.position.set(BRIDGE.x, (deckY - .9) / 2 + .45, z);
+    const pierH = Math.max(.5, deckY - .28);
+    const pier = new THREE.Mesh(new THREE.CylinderGeometry(.55, .75, pierH, 10), pierMat);
+    pier.position.set(BRIDGE.x, pierH / 2, z);
     pier.castShadow = true;
     g.add(pier);
   }
