@@ -472,7 +472,7 @@ function heightAt(x, z) {
   }
 
   // 引道 + 桥墩：全部压在桥面以下，桥面上不再冒出石块
-  const pierMat = new THREE.MeshStandardMaterial({ color: 0x9e9madd, roughness: .95, flatShading: true });
+  const pierMat = new THREE.MeshStandardMaterial({ color: 0x9e9a90, roughness: .95, flatShading: true });
   for (const t of [0, 1]) {
     const z = BRIDGE.z0 + t * len;
     const abut = new THREE.Mesh(new THREE.BoxGeometry(BRIDGE.halfW * 2 + .5, .5, 1.6), pierMat);
