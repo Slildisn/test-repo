@@ -1,4 +1,5 @@
 name: land-patch
+# rerun: 2
 on:
   push:
     paths:
@@ -11,7 +12,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Apply landmark patch
-        run: python3 map2-patch.py
+        run: |
+          ls -la
+          python3 map2-patch.py
       - name: Commit
         run: |
           git config user.name 'map-bot'
